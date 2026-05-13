@@ -1,4 +1,4 @@
-import type { Piece3D, Polygon, PolygonWithHoles } from '../core/types';
+import type { Piece3D, PiecePlacement, Polygon, PolygonWithHoles } from '../core/types';
 import { isPolygonWithHoles } from '../core/types';
 import type { Vec3 } from '../core/vec3';
 
@@ -55,6 +55,26 @@ export function piecesFromUnit(pieces: readonly Piece3D[], unitId: string): Piec
 
 export function piecesByLabel(pieces: readonly Piece3D[], label: string): Piece3D[] {
   return pieces.filter((p) => p.label === label);
+}
+
+export function piecesByPlacementKind(
+  pieces: readonly Piece3D[],
+  kind: PiecePlacement['kind'],
+): Piece3D[] {
+  return pieces.filter((p) => p.placement?.kind === kind);
+}
+
+export function findPlacement<K extends PiecePlacement['kind']>(
+  pieces: readonly Piece3D[],
+  kind: K,
+  filter?: (placement: Extract<PiecePlacement, { kind: K }>) => boolean,
+): Piece3D | undefined {
+  for (const piece of pieces) {
+    if (piece.placement?.kind !== kind) continue;
+    if (!filter) return piece;
+    if (filter(piece.placement as Extract<PiecePlacement, { kind: K }>)) return piece;
+  }
+  return undefined;
 }
 
 export type ProjectionPlane = 'xy' | 'xz' | 'yz';

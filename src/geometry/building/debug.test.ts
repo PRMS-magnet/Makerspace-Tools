@@ -8,6 +8,8 @@ import {
   piecesByLabel,
   piece3DWorldCorners,
   buildDebugSvg,
+  piecesByPlacementKind,
+  findPlacement,
 } from './debug';
 import { pitchTangent, wingRidgeEndpointY, valley3DLengthPerUnitT } from './intersect/common';
 
@@ -125,6 +127,35 @@ describe('buildDebugSvg', () => {
     const top = buildDebugSvg(out.pieces3D, { plane: 'xy' });
     const front = buildDebugSvg(out.pieces3D, { plane: 'xz' });
     expect(top).not.toBe(front);
+  });
+});
+
+describe('piecesByPlacementKind + findPlacement', () => {
+  const wing = { ...MAIN_PARAMS, spanIn: 8, houseLengthIn: 10 };
+  const b = tPlanPreset(MAIN_PARAMS, wing, 12);
+  const out = buildingCutlist(b);
+
+  it('piecesByPlacementKind returns all matching pieces', () => {
+    const rafters = piecesByPlacementKind(out.pieces3D, 'unit-rafter');
+    expect(rafters.length).toBeGreaterThan(0);
+    for (const r of rafters) {
+      expect(r.placement?.kind).toBe('unit-rafter');
+    }
+  });
+
+  it('findPlacement returns the first piece matching a predicate', () => {
+    const main0 = findPlacement(out.pieces3D, 'unit-rafter', (p) =>
+      p.unitId === 'main' && p.indexAlongRidge === 0,
+    );
+    expect(main0).toBeDefined();
+    expect(main0?.placement?.kind).toBe('unit-rafter');
+  });
+
+  it('findPlacement returns undefined when nothing matches', () => {
+    const missing = findPlacement(out.pieces3D, 'unit-rafter', (p) =>
+      p.indexAlongRidge === 9999,
+    );
+    expect(missing).toBeUndefined();
   });
 });
 
