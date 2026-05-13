@@ -3,9 +3,9 @@ import type { RoofCutlistOptions } from '../roof';
 import { roofPieces, composeRoofCutSvg } from '../roof';
 import { computeIntersection } from './intersect';
 import { buildPlanDiagram } from './diagram';
-import { unitPlacement, applyPlacementToPiece3D } from './place3d';
 import { layoutOnSheet } from '../core/layout';
-import type { Sheet, Piece, Piece3D } from '../core/types';
+import { buildContext, resolvePiece } from '../core/resolver';
+import type { Sheet, Piece, Piece3D, PiecePlacement } from '../core/types';
 
 function unitToRoofParams(b: Building, unitIndex: number) {
   const u = b.units[unitIndex];
@@ -29,6 +29,11 @@ function unitToRoofParams(b: Building, unitIndex: number) {
   };
 }
 
+function retagPlacement(p: PiecePlacement, unitId: string): PiecePlacement {
+  if ('unitId' in p) return { ...p, unitId };
+  return p;
+}
+
 export function buildingCutlist(
   b: Building,
   opts: RoofCutlistOptions = {},
@@ -44,17 +49,25 @@ export function buildingCutlist(
   const kerfPerSideIn = opts.kerfPerSideIn ?? 0.006;
   const fitMode = opts.fitMode ?? 'press';
 
+  const ctx = buildContext(b, opts);
+
   const unitOutputs = b.units.map((u, i) => {
     const r = roofPieces(unitToRoofParams(b, i), opts);
-    const placement = unitPlacement(b, i);
-    const transformed3D = r.pieces3D.map((p) => {
-      const placed = applyPlacementToPiece3D(p, placement);
-      return { ...placed, unitId: u.id };
+    const declaredPieces3D: Piece3D[] = r.pieces3D.map((piece) => {
+      if (!piece.placement) {
+        return { ...piece, unitId: u.id };
+      }
+      const retagged: Piece3D = {
+        ...piece,
+        placement: retagPlacement(piece.placement, u.id),
+      };
+      const resolved = resolvePiece(retagged, ctx);
+      return { ...resolved, unitId: u.id };
     });
     return {
       unit: u,
       pieces: r.pieces,
-      pieces3D: transformed3D,
+      pieces3D: declaredPieces3D,
       derived: r.derived,
       diagramSvg: r.diagramSvg,
       warnings: r.warnings,

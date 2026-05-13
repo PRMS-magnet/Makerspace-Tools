@@ -6,7 +6,7 @@ export {
   BUILTIN_BUILDING_PRESETS,
 } from './presets';
 export { buildPlanDiagram } from './diagram';
-export { unitPlacement, applyPlacementToPiece3D } from './place3d';
+export { unitPlacement } from './place3d';
 export { computeIntersection } from './intersect';
 
 export type {
