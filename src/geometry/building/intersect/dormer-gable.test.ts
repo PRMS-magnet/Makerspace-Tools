@@ -61,6 +61,25 @@ describe('computeDormerGable', () => {
   });
 });
 
+describe('computeDormerGable -- window opening', () => {
+  it('front wall is PolygonWithHoles when window is set', () => {
+    const r = computeDormerGable(HOST, { ...PLACEMENT, window: { widthIn: 1.5, heightIn: 1.5, sillIn: 0.3 } }, 'd1', OPTS);
+    const front = r.newPieces.find((p) => p.placement?.kind === 'dormer-front-wall')!;
+    expect(Array.isArray(front.polygon)).toBe(false);
+    if (!Array.isArray(front.polygon)) {
+      expect(front.polygon.outline.length).toBe(5);
+      expect(front.polygon.holes.length).toBe(1);
+      expect(front.polygon.holes[0].length).toBe(4);
+    }
+  });
+
+  it('front wall is plain Polygon when no window is set', () => {
+    const front = computeDormerGable(HOST, PLACEMENT, 'd1', OPTS)
+      .newPieces.find((p) => p.placement?.kind === 'dormer-front-wall')!;
+    expect(Array.isArray(front.polygon)).toBe(true);
+  });
+});
+
 describe('computeDormerGableGeom', () => {
   const g = computeDormerGableGeom(HOST, PLACEMENT);
 

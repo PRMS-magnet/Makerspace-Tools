@@ -58,6 +58,19 @@ describe('computeDormerShed', () => {
   });
 });
 
+describe('computeDormerShed -- window opening', () => {
+  it('front wall is PolygonWithHoles when window is set', () => {
+    const r = computeDormerShed(HOST, { ...PLACEMENT, window: { widthIn: 1.5, heightIn: 0.8, sillIn: 0.3 } }, 'd1', OPTS);
+    const front = r.newPieces.find((p) => p.placement?.kind === 'dormer-front-wall')!;
+    expect(Array.isArray(front.polygon)).toBe(false);
+    if (!Array.isArray(front.polygon)) {
+      expect(front.polygon.outline.length).toBe(4);
+      expect(front.polygon.holes.length).toBe(1);
+      expect(front.polygon.holes[0].length).toBe(4);
+    }
+  });
+});
+
 describe('computeDormerShedGeom', () => {
   const g = computeDormerShedGeom(HOST, PLACEMENT);
 

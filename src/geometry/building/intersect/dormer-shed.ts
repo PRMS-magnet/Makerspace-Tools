@@ -1,6 +1,6 @@
 import type { RoofUnit } from '../../roof/types';
-import type { DormerShedPlacement, ComputeIntersectionResult } from '../types';
-import type { Piece, Polygon } from '../../core/types';
+import type { DormerShedPlacement, ComputeIntersectionResult, WindowOpening } from '../types';
+import type { Piece, Polygon, PolygonWithHoles } from '../../core/types';
 
 export interface DormerShedOptions {
   stockThicknessIn: number;
@@ -70,13 +70,23 @@ function cheekWallPolygon(g: DormerShedGeom): Polygon {
   ];
 }
 
-function frontWallPolygon(g: DormerShedGeom, W: number): Polygon {
-  return [
+function frontWallPolygon(g: DormerShedGeom, W: number, window?: WindowOpening): Polygon | PolygonWithHoles {
+  const rect: Polygon = [
     [0, 0],
     [W, 0],
     [W, g.h_at_front],
     [0, g.h_at_front],
   ];
+  if (!window) return rect;
+  const x0 = (W - window.widthIn) / 2;
+  const y0 = window.sillIn;
+  const hole: Polygon = [
+    [x0, y0],
+    [x0 + window.widthIn, y0],
+    [x0 + window.widthIn, y0 + window.heightIn],
+    [x0, y0 + window.heightIn],
+  ];
+  return { outline: rect, holes: [hole] };
 }
 
 function rectanglePolygon(width: number, height: number): Polygon {
@@ -111,7 +121,7 @@ export function computeDormerShed(
   }
 
   newPieces.push({
-    polygon: frontWallPolygon(g, W),
+    polygon: frontWallPolygon(g, W, placement.window),
     op: 'cut',
     label: 'front-wall',
     placement: { kind: 'dormer-front-wall', dormerId },

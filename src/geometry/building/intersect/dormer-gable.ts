@@ -1,6 +1,6 @@
 import type { RoofUnit } from '../../roof/types';
-import type { DormerGablePlacement, ComputeIntersectionResult } from '../types';
-import type { Piece, Polygon } from '../../core/types';
+import type { DormerGablePlacement, ComputeIntersectionResult, WindowOpening } from '../types';
+import type { Piece, Polygon, PolygonWithHoles } from '../../core/types';
 import type { Line3 } from '../../core/plane';
 import type { Vec3 } from '../../core/vec3';
 
@@ -66,14 +66,24 @@ function cheekWallPolygon(g: DormerGableGeom): Polygon {
   ];
 }
 
-function frontWallPolygon(g: DormerGableGeom, W: number): Polygon {
-  return [
+function frontWallPolygon(g: DormerGableGeom, W: number, window?: WindowOpening): Polygon | PolygonWithHoles {
+  const pentagon: Polygon = [
     [0, 0],
     [W, 0],
     [W, g.h_cheek],
     [W / 2, g.h_peak],
     [0, g.h_cheek],
   ];
+  if (!window) return pentagon;
+  const x0 = (W - window.widthIn) / 2;
+  const y0 = window.sillIn;
+  const hole: Polygon = [
+    [x0, y0],
+    [x0 + window.widthIn, y0],
+    [x0 + window.widthIn, y0 + window.heightIn],
+    [x0, y0 + window.heightIn],
+  ];
+  return { outline: pentagon, holes: [hole] };
 }
 
 function rectanglePolygon(width: number, height: number): Polygon {
@@ -127,7 +137,7 @@ export function computeDormerGable(
   }
 
   newPieces.push({
-    polygon: frontWallPolygon(g, W),
+    polygon: frontWallPolygon(g, W, placement.window),
     op: 'cut',
     label: 'front-wall',
     placement: { kind: 'dormer-front-wall', dormerId },

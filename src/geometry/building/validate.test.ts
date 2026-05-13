@@ -73,6 +73,23 @@ describe('validateBuilding -- dormer placement rules', () => {
     expect(warnings.some((w) => /maximum 3 gable/i.test(w.message))).toBe(true);
   });
 
+  it('warns when a window is too wide', () => {
+    const b: Building = {
+      units: [MAIN_UNIT],
+      intersections: [{
+        id: 'd1', hostId: 'main', guestId: 'unused', kind: 'dormer-gable',
+        placement: {
+          hostId: 'main', xAlongHostRidge: 10, yFromHostRidge: 2,
+          widthIn: 3, ridgeHeightIn: 2, pitchRise: 8, pitchRun: 12, side: 'north',
+          window: { widthIn: 2.5, heightIn: 1.0, sillIn: 0.6 },
+        },
+      }],
+      ...SHEET,
+    };
+    const warnings = validateBuilding(b);
+    expect(warnings.some((w) => /window.*too wide/i.test(w.message))).toBe(true);
+  });
+
   it('returns no warnings for a valid Building', () => {
     const b: Building = {
       units: [MAIN_UNIT],

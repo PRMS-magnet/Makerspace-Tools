@@ -1,4 +1,4 @@
-import type { Building, Intersection, DormerGablePlacement, DormerShedPlacement } from './types';
+import type { Building, Intersection, DormerGablePlacement, DormerShedPlacement, WindowOpening } from './types';
 
 export interface ValidationWarning {
   message: string;
@@ -11,6 +11,20 @@ const MIN_EAVE_SETBACK_IN = 0.67;
 const MAX_GABLE_DORMERS_PER_SLOPE = 3;
 const MAX_SHED_DORMERS_PER_SLOPE = 2;
 const MAX_DORMER_WIDTH_RATIO = 1 / 3;
+
+function validateWindowOpening(interId: string, w: WindowOpening, parentWidthIn: number, h_front: number): ValidationWarning[] {
+  const ws: ValidationWarning[] = [];
+  if (w.widthIn > parentWidthIn - 0.66) {
+    ws.push({ message: `Window in dormer ${interId} too wide: leave at least 0.33 in setback per side`, severity: 'warn', intersectionId: interId });
+  }
+  if (w.sillIn < 0.5) {
+    ws.push({ message: `Window in dormer ${interId} sill too low: minimum 0.5 in for model scale`, severity: 'warn', intersectionId: interId });
+  }
+  if (w.sillIn + w.heightIn + 0.33 > h_front) {
+    ws.push({ message: `Window in dormer ${interId} too tall: leaves no header above`, severity: 'warn', intersectionId: interId });
+  }
+  return ws;
+}
 
 function isDormerGable(i: Intersection): i is Intersection & { kind: 'dormer-gable'; placement: DormerGablePlacement } {
   return i.kind === 'dormer-gable';
@@ -70,6 +84,17 @@ export function validateBuilding(b: Building): ValidationWarning[] {
         severity: 'info',
         intersectionId: inter.id,
       });
+    }
+
+    if (isDormerGable(inter) && inter.placement.window) {
+      const p = inter.placement;
+      const h_cheek = p.ridgeHeightIn - (p.widthIn / 2) * (p.pitchRise / p.pitchRun);
+      warnings.push(...validateWindowOpening(inter.id, inter.placement.window, p.widthIn, h_cheek));
+    }
+
+    if (isDormerShed(inter) && inter.placement.window) {
+      const p = inter.placement;
+      warnings.push(...validateWindowOpening(inter.id, inter.placement.window, p.widthIn, p.frontWallHeightIn));
     }
   }
 
