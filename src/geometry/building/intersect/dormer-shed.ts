@@ -10,6 +10,9 @@ export interface DormerShedOptions {
 
 export interface DormerShedGeom {
   xCenter: number;
+  sideSign: 1 | -1;
+  d_front: number;
+  d_back: number;
   y_front: number;
   y_back: number;
   z_main_front: number;
@@ -24,28 +27,35 @@ export interface DormerShedGeom {
   h_front_at_floor: number;
   h_at_front: number;
   slope_len: number;
+  fits: boolean;
 }
 
 export function computeDormerShedGeom(host: RoofUnit, p: DormerShedPlacement): DormerShedGeom {
   const H = host.spanIn / 2;
   const m_host = host.pitchRise / host.pitchRun;
   const m_sd = p.pitchRise / p.pitchRun;
-  const y_back = H - p.yBackFromHostRidge;
-  const y_front = H - p.yFrontFromHostRidge;
-  const z_main_back = (H - y_back) * m_host;
-  const z_main_front = (H - y_front) * m_host;
+  const sideSign: 1 | -1 = p.side === 'south' ? -1 : 1;
+  const d_back = p.yBackFromHostRidge;
+  const d_front = p.yFrontFromHostRidge;
+  const z_main_back = (H - d_back) * m_host;
+  const z_main_front = (H - d_front) * m_host;
   const Z_front_plate = z_main_front + p.frontWallHeightIn;
-  const Z_header = Z_front_plate + (p.yFrontFromHostRidge - p.yBackFromHostRidge) * m_sd;
-  const L_along = y_back - y_front;
-  const h_back = Z_header - z_main_back;
-  const h_back_at_front = Z_front_plate - z_main_back;
-  const h_front_at_floor = z_main_front - z_main_back;
+  const L_along = Math.max(0, d_front - d_back);
+  const Z_header = Z_front_plate + L_along * m_sd;
+  const h_back = Math.max(0, Z_header - z_main_back);
+  const h_back_at_front = Math.max(0, Z_front_plate - z_main_back);
+  const h_front_at_floor = Math.max(0, z_main_front - z_main_back);
   const h_at_front = p.frontWallHeightIn;
   const slope_len = L_along / Math.cos(Math.atan(m_sd));
+  const Z_main_ridge = H * m_host;
+  const fits = d_back > 0 && d_front <= H && d_front > d_back && Z_header < Z_main_ridge && Z_header > Z_front_plate;
   return {
     xCenter: p.xAlongHostRidge,
-    y_front,
-    y_back,
+    sideSign,
+    d_front,
+    d_back,
+    y_front: sideSign * d_front,
+    y_back: sideSign * d_back,
     z_main_front,
     z_main_back,
     Z_front_plate,
@@ -58,6 +68,7 @@ export function computeDormerShedGeom(host: RoofUnit, p: DormerShedPlacement): D
     h_front_at_floor,
     h_at_front,
     slope_len,
+    fits,
   };
 }
 
@@ -149,7 +160,7 @@ export function computeDormerShed(
     });
   }
 
-  const cripple_run = H - g.y_back;
+  const cripple_run = Math.max(0, g.d_back);
   const cripple_slope_length = cripple_run / Math.cos(Math.atan(g.m_host));
 
   for (let i = 0; i < nRafters; i++) {
@@ -161,6 +172,8 @@ export function computeDormerShed(
       extrudeDepthIn: stock,
     });
   }
+
+  void H;
 
   return {
     newPieces,

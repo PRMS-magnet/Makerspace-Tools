@@ -13,7 +13,7 @@ const HOST: RoofUnit = {
 
 const PLACEMENT: DormerGablePlacement = {
   hostId: 'main', xAlongHostRidge: 12, yFromHostRidge: 2,
-  widthIn: 3, ridgeHeightIn: 2.5,
+  widthIn: 2, ridgeHeightIn: 1,
   pitchRise: 8, pitchRun: 12, side: 'north',
 };
 
@@ -83,13 +83,33 @@ describe('computeDormerGable -- window opening', () => {
 describe('computeDormerGableGeom', () => {
   const g = computeDormerGableGeom(HOST, PLACEMENT);
 
-  it('matches the math-doc worked example', () => {
-    expect(g.y_front).toBeCloseTo(4, 6);
-    expect(g.z_main_front).toBeCloseTo(4 / 3, 6);
-    expect(g.Z_dormer_ridge).toBeCloseTo(4 / 3 + 2.5, 6);
-    expect(g.Z_cheek).toBeCloseTo(4 / 3 + 2.5 - 1, 6);
-    expect(g.Y_back).toBeCloseTo(0.25, 6);
-    expect(g.Y_valley_at_cheek).toBeCloseTo(1.75, 6);
-    expect(g.L_dormer_ridge).toBeCloseTo(3.75, 6);
+  it('matches the math-doc worked example (north side, valid geometry)', () => {
+    expect(g.sideSign).toBe(1);
+    expect(g.d_front).toBeCloseTo(2, 6);
+    expect(g.y_front).toBeCloseTo(2, 6);
+    expect(g.z_main_front).toBeCloseTo(8 / 3, 6);
+    expect(g.Z_dormer_ridge).toBeCloseTo(8 / 3 + 1, 6);
+    expect(g.Z_cheek).toBeCloseTo(8 / 3 + 1 - (2 / 3), 6);
+    expect(g.d_back).toBeCloseTo(0.5, 6);
+    expect(g.d_valley_at_cheek).toBeCloseTo(1.5, 6);
+    expect(g.y_back).toBeCloseTo(0.5, 6);
+    expect(g.y_valley_at_cheek).toBeCloseTo(1.5, 6);
+    expect(g.L_dormer_ridge).toBeCloseTo(1.5, 6);
+    expect(g.L_cheek_horizontal).toBeCloseTo(0.5, 6);
+    expect(g.fits).toBe(true);
+  });
+
+  it('flips world-Y signs when side is south', () => {
+    const south = computeDormerGableGeom(HOST, { ...PLACEMENT, side: 'south' });
+    expect(south.sideSign).toBe(-1);
+    expect(south.y_front).toBeCloseTo(-2, 6);
+    expect(south.y_back).toBeCloseTo(-0.5, 6);
+    expect(south.y_valley_at_cheek).toBeCloseTo(-1.5, 6);
+    expect(south.d_front).toBeCloseTo(2, 6);
+  });
+
+  it('reports fits=false when dormer ridge would exceed main ridge', () => {
+    const tall = computeDormerGableGeom(HOST, { ...PLACEMENT, ridgeHeightIn: 5 });
+    expect(tall.fits).toBe(false);
   });
 });

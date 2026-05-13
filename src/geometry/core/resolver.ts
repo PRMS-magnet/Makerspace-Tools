@@ -228,13 +228,14 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const f = ctx.dormerFrames.get(p.dormerId);
       if (!f) throw new Error(`resolvePiece: no dormer frame for ${p.dormerId}`);
       const xSign = p.side === 'east' ? +1 : -1;
+      const s = f.geom.sideSign;
       if (f.kind === 'gable') {
         const localOrigin: Vec3 = [
           f.placement.xAlongHostRidge + xSign * f.placement.widthIn / 2,
           f.geom.y_front,
           f.geom.z_main_front,
         ];
-        const localU: Vec3 = [0, -1, 0];
+        const localU: Vec3 = [0, -s, 0];
         const localV: Vec3 = [0, 0, 1];
         const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
         return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };
@@ -244,7 +245,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
           f.geom.y_back,
           f.geom.z_main_back,
         ];
-        const localU: Vec3 = [0, -1, 0];
+        const localU: Vec3 = [0, s, 0];
         const localV: Vec3 = [0, 0, 1];
         const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
         return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };
@@ -280,12 +281,13 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       if (!f) throw new Error(`resolvePiece: no dormer frame for ${p.dormerId}`);
       if (f.kind !== 'gable') throw new Error(`resolvePiece: dormer-ridge requires gable dormer`);
       const stock = f.hostFrame.stockThicknessIn;
+      const s = f.geom.sideSign;
       const localOrigin: Vec3 = [
         f.placement.xAlongHostRidge - stock / 2,
-        f.geom.Y_back,
+        f.geom.y_back,
         f.geom.Z_dormer_ridge - stock,
       ];
-      const localU: Vec3 = [0, 1, 0];
+      const localU: Vec3 = [0, s, 0];
       const localV: Vec3 = [0, 0, 1];
       const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
       return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? stock };
@@ -293,12 +295,13 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
     case 'dormer-rafter': {
       const f = ctx.dormerFrames.get(p.dormerId);
       if (!f) throw new Error(`resolvePiece: no dormer frame for ${p.dormerId}`);
+      const s = f.geom.sideSign;
       if (f.kind === 'gable') {
         const xSign = p.side === 'east' ? +1 : -1;
-        const y_pos = f.geom.Y_valley_at_cheek + p.indexAlongRidge * f.hostFrame.unit.rafterSpacingIn;
+        const d_pos = f.geom.d_valley_at_cheek + p.indexAlongRidge * f.hostFrame.unit.rafterSpacingIn;
         const localOrigin: Vec3 = [
           f.placement.xAlongHostRidge + xSign * f.placement.widthIn / 2,
-          y_pos,
+          s * d_pos,
           f.geom.Z_cheek,
         ];
         const localU: Vec3 = [-xSign, 0, 0];
@@ -312,7 +315,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
         const dy = f.geom.L_along;
         const dz = f.geom.L_along * f.geom.m_sd;
         const slope_len = Math.hypot(dy, dz);
-        const localU: Vec3 = [0, dy / slope_len, dz / slope_len];
+        const localU: Vec3 = slope_len === 0 ? [0, s, 0] : [0, -s * dy / slope_len, dz / slope_len];
         const localV: Vec3 = [0, 0, 1];
         const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
         return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };
@@ -323,12 +326,13 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       if (!f) throw new Error(`resolvePiece: no dormer frame for ${p.dormerId}`);
       if (f.kind !== 'gable') throw new Error(`resolvePiece: dormer-valley-jack requires gable dormer`);
       const xSign = p.side === 'east' ? +1 : -1;
-      const y_pos = f.geom.Y_back + p.indexAlongRidge * f.hostFrame.unit.rafterSpacingIn;
-      const span = f.geom.Y_valley_at_cheek - f.geom.Y_back;
-      const t = span === 0 ? 0 : (f.geom.Y_valley_at_cheek - y_pos) / span;
+      const s = f.geom.sideSign;
+      const d_pos = f.geom.d_back + p.indexAlongRidge * f.hostFrame.unit.rafterSpacingIn;
+      const span = f.geom.d_valley_at_cheek - f.geom.d_back;
+      const t = span <= 0 ? 0 : (f.geom.d_valley_at_cheek - d_pos) / span;
       const x_valley = f.placement.xAlongHostRidge + xSign * (f.placement.widthIn / 2) * t;
       const z_valley = f.geom.Z_dormer_ridge - Math.abs(x_valley - f.placement.xAlongHostRidge) * f.geom.m_d;
-      const localOrigin: Vec3 = [x_valley, y_pos, z_valley];
+      const localOrigin: Vec3 = [x_valley, s * d_pos, z_valley];
       const localU: Vec3 = [-xSign, 0, 0];
       const localV: Vec3 = [0, 0, 1];
       const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
@@ -339,12 +343,13 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       if (!f) throw new Error(`resolvePiece: no dormer frame for ${p.dormerId}`);
       if (f.kind !== 'gable') throw new Error(`resolvePiece: dormer-rafter-plate requires gable dormer`);
       const xSign = p.side === 'east' ? +1 : -1;
+      const s = f.geom.sideSign;
       const localOrigin: Vec3 = [
         f.placement.xAlongHostRidge + xSign * f.placement.widthIn / 2,
-        f.geom.Y_valley_at_cheek,
+        f.geom.y_valley_at_cheek,
         f.geom.Z_cheek,
       ];
-      const localU: Vec3 = [0, 1, 0];
+      const localU: Vec3 = [0, s, 0];
       const localV: Vec3 = [0, 0, 1];
       const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
       return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };
@@ -356,11 +361,11 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const xSign = p.side === 'east' ? +1 : -1;
       const localOrigin: Vec3 = [
         f.placement.xAlongHostRidge + xSign * f.placement.widthIn / 2,
-        f.geom.Y_valley_at_cheek,
+        f.geom.y_valley_at_cheek,
         f.geom.Z_cheek,
       ];
       const dx = -xSign * f.placement.widthIn / 2;
-      const dy = f.geom.Y_back - f.geom.Y_valley_at_cheek;
+      const dy = f.geom.y_back - f.geom.y_valley_at_cheek;
       const len = Math.hypot(dx, dy);
       const localU: Vec3 = len === 0 ? [1, 0, 0] : [dx / len, dy / len, 0];
       const localV: Vec3 = [0, 0, 1];
@@ -371,14 +376,14 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const f = ctx.dormerFrames.get(p.dormerId);
       if (!f) throw new Error(`resolvePiece: no dormer frame for ${p.dormerId}`);
       if (f.kind !== 'shed') throw new Error(`resolvePiece: shed-dormer-cripple requires shed dormer`);
-      const H = f.hostFrame.unit.spanIn / 2;
       const x_pos = f.placement.xAlongHostRidge - f.placement.widthIn / 2
         + p.indexAlongRidge * f.hostFrame.unit.rafterSpacingIn;
-      const localOrigin: Vec3 = [x_pos, H, H * f.geom.m_host];
-      const dy = f.geom.y_back - H;
-      const dz = f.geom.z_main_back - H * f.geom.m_host;
+      const ridgeZ = (f.hostFrame.unit.spanIn / 2) * f.geom.m_host;
+      const localOrigin: Vec3 = [x_pos, 0, ridgeZ];
+      const dy = f.geom.y_back - 0;
+      const dz = f.geom.z_main_back - ridgeZ;
       const slope_len = Math.hypot(dy, dz);
-      const localU: Vec3 = slope_len === 0 ? [0, 1, 0] : [0, dy / slope_len, dz / slope_len];
+      const localU: Vec3 = slope_len === 0 ? [0, f.geom.sideSign, 0] : [0, dy / slope_len, dz / slope_len];
       const localV: Vec3 = [0, 0, 1];
       const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
       return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };

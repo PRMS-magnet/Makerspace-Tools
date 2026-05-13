@@ -941,15 +941,42 @@ const previewViews = [
     recompute();
   });
 
+  function defaultDormerSize(kind: 'gable' | 'shed'): { yFromHostRidge: number; widthIn: number; heightIn: number } {
+    const params = readParams();
+    const H = params.spanIn / 2;
+    const m = params.pitchRise / params.pitchRun;
+    const ridgeZ = H * m;
+    const yFromHostRidge = Math.max(0.5, Math.min(H * 0.45, H * 0.4));
+    const widthIn = Math.max(0.75, Math.min(params.houseLengthIn * 0.25, H * 0.5));
+    if (kind === 'gable') {
+      const z_at_front = (H - yFromHostRidge) * m;
+      const maxRidgeHeight = Math.max(0.2, ridgeZ - z_at_front - 0.1);
+      const dormerSlopeRise = (widthIn / 2) * m;
+      const heightIn = Math.max(dormerSlopeRise + 0.15, Math.min(maxRidgeHeight, dormerSlopeRise * 1.6 + 0.2));
+      return { yFromHostRidge, widthIn, heightIn };
+    } else {
+      const yBack = Math.max(0.4, yFromHostRidge - widthIn / 2);
+      const yFront = Math.min(H - 0.2, yFromHostRidge + widthIn / 2);
+      const z_at_front = (H - yFront) * m;
+      const z_at_back = (H - yBack) * m;
+      const shedRise = (yFront - yBack) * (2 / 12);
+      const maxFrontWall = Math.max(0.2, z_at_back - z_at_front - shedRise - 0.1);
+      const heightIn = Math.max(0.4, Math.min(maxFrontWall, (z_at_back - z_at_front) * 0.5));
+      return { yFromHostRidge, widthIn, heightIn };
+    }
+  }
+
   document.getElementById('add-gable-dormer')!.addEventListener('click', () => {
+    const params = readParams();
+    const def = defaultDormerSize('gable');
     dormers.push({
       id: genDormerId(),
       kind: 'gable',
       hostId: 'main',
-      xAlongHostRidge: 5,
-      yFromHostRidge: 2,
-      widthIn: 3,
-      heightIn: 2.5,
+      xAlongHostRidge: params.houseLengthIn / 2,
+      yFromHostRidge: def.yFromHostRidge,
+      widthIn: def.widthIn,
+      heightIn: def.heightIn,
       side: 'north',
     });
     renderDormerList();
@@ -957,14 +984,16 @@ const previewViews = [
   });
 
   document.getElementById('add-shed-dormer')!.addEventListener('click', () => {
+    const def = defaultDormerSize('shed');
+    const params = readParams();
     dormers.push({
       id: genDormerId(),
       kind: 'shed',
       hostId: 'main',
-      xAlongHostRidge: 5,
-      yFromHostRidge: 2,
-      widthIn: 3,
-      heightIn: 1.5,
+      xAlongHostRidge: params.houseLengthIn / 2,
+      yFromHostRidge: def.yFromHostRidge,
+      widthIn: def.widthIn,
+      heightIn: def.heightIn,
       side: 'north',
     });
     renderDormerList();

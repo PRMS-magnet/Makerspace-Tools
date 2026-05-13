@@ -74,11 +74,24 @@ describe('computeDormerShed -- window opening', () => {
 describe('computeDormerShedGeom', () => {
   const g = computeDormerShedGeom(HOST, PLACEMENT);
 
-  it('matches the math-doc worked example', () => {
-    expect(g.y_back).toBeCloseTo(5, 6);
-    expect(g.y_front).toBeCloseTo(2, 6);
+  it('matches the math-doc worked example (north side, signed world Y)', () => {
+    expect(g.sideSign).toBe(1);
+    expect(g.d_back).toBeCloseTo(1, 6);
+    expect(g.d_front).toBeCloseTo(4, 6);
+    expect(g.y_back).toBeCloseTo(1, 6);
+    expect(g.y_front).toBeCloseTo(4, 6);
     expect(g.L_along).toBeCloseTo(3, 6);
-    expect(g.Z_front_plate).toBeCloseTo((6 - 2) * (8 / 12) + 1.5, 6);
+    expect(g.z_main_front).toBeCloseTo((6 - 4) * (8 / 12), 6);
+    expect(g.z_main_back).toBeCloseTo((6 - 1) * (8 / 12), 6);
+    expect(g.Z_front_plate).toBeCloseTo((6 - 4) * (8 / 12) + 1.5, 6);
     expect(g.Z_header).toBeCloseTo(g.Z_front_plate + 3 * (2 / 12), 6);
+  });
+
+  it('flips world-Y signs when side is south', () => {
+    const south = computeDormerShedGeom(HOST, { ...PLACEMENT, side: 'south' });
+    expect(south.sideSign).toBe(-1);
+    expect(south.y_back).toBeCloseTo(-1, 6);
+    expect(south.y_front).toBeCloseTo(-4, 6);
+    expect(south.d_back).toBeCloseTo(1, 6);
   });
 });

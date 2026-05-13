@@ -13,7 +13,7 @@ function footprintForUnit(b: Building, unitIndex: number): FootprintRect {
   if (unitIndex === 0) {
     return { x0: 0, y0: 0, x1: u.houseLengthIn, y1: u.spanIn };
   }
-  const inter = b.intersections[0];
+  const inter = b.intersections.find((i) => i.kind === 'cross-gable-T' || i.kind === 'cross-gable-L');
   if (!inter) return { x0: 0, y0: 0, x1: u.houseLengthIn, y1: u.spanIn };
 
   const host = b.units[0];
@@ -63,16 +63,17 @@ export function buildPlanDiagram(b: Building, marginIn = 1): string {
     );
   }
 
+  const wingInter = b.intersections.find((i) => i.kind === 'cross-gable-T' || i.kind === 'cross-gable-L');
   for (let i = 0; i < b.units.length; i++) {
     const fr = rects[i];
     let x1 = fr.x0;
     let y1 = (fr.y0 + fr.y1) / 2;
     let x2 = fr.x1;
     let y2 = y1;
-    if (i === 1 && b.intersections[0]) {
+    if (i === 1 && wingInter) {
       const xCenter =
-        b.intersections[0].kind === 'cross-gable-T'
-          ? (b.intersections[0].placement as { xAlongHostRidge: number }).xAlongHostRidge
+        wingInter.kind === 'cross-gable-T'
+          ? (wingInter.placement as { xAlongHostRidge: number }).xAlongHostRidge
           : (fr.x0 + fr.x1) / 2;
       x1 = xCenter;
       y1 = fr.y0;
@@ -85,8 +86,9 @@ export function buildPlanDiagram(b: Building, marginIn = 1): string {
     );
   }
 
-  const inter = b.intersections[0];
-  if (inter) {
+  const wingIntersection = b.intersections.find((i) => i.kind === 'cross-gable-T' || i.kind === 'cross-gable-L');
+  const inter = wingIntersection;
+  if (inter && b.units.length >= 2) {
     const host = b.units[0];
     const guest = b.units[1];
     const m_main = pitchTangent(host);

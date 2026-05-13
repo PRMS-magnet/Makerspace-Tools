@@ -12,12 +12,16 @@ export interface DormerGableOptions {
 
 export interface DormerGableGeom {
   xCenter: number;
+  sideSign: 1 | -1;
+  d_front: number;
+  d_back: number;
+  d_valley_at_cheek: number;
   y_front: number;
+  y_back: number;
+  y_valley_at_cheek: number;
   z_main_front: number;
   Z_dormer_ridge: number;
   Z_cheek: number;
-  Y_back: number;
-  Y_valley_at_cheek: number;
   h_cheek: number;
   h_peak: number;
   m_host: number;
@@ -25,6 +29,7 @@ export interface DormerGableGeom {
   L_cheek_horizontal: number;
   L_valley_horizontal: number;
   L_dormer_ridge: number;
+  fits: boolean;
 }
 
 export function computeDormerGableGeom(host: RoofUnit, p: DormerGablePlacement): DormerGableGeom {
@@ -32,29 +37,42 @@ export function computeDormerGableGeom(host: RoofUnit, p: DormerGablePlacement):
   const m_host = host.pitchRise / host.pitchRun;
   const m_d = p.pitchRise / p.pitchRun;
   const W = p.widthIn;
-  const y_front = H - p.yFromHostRidge;
-  const z_main_front = (H - y_front) * m_host;
+  const sideSign: 1 | -1 = p.side === 'south' ? -1 : 1;
+  const d_front = p.yFromHostRidge;
+  const z_main_front = (H - d_front) * m_host;
   const Z_dormer_ridge = z_main_front + p.ridgeHeightIn;
   const Z_cheek = Z_dormer_ridge - (W / 2) * m_d;
-  const Y_back = H - Z_dormer_ridge / m_host;
-  const Y_valley_at_cheek = H - Z_cheek / m_host;
-  const L_cheek_horizontal = y_front - Y_valley_at_cheek;
-  const L_valley_horizontal = Math.hypot(W / 2, Y_valley_at_cheek - Y_back);
+  const d_back = H - Z_dormer_ridge / m_host;
+  const d_valley_at_cheek = H - Z_cheek / m_host;
+  const L_cheek_horizontal = Math.max(0, d_front - d_valley_at_cheek);
+  const L_valley_horizontal = Math.hypot(W / 2, Math.max(0, d_valley_at_cheek - d_back));
+  const L_dormer_ridge = Math.max(0, d_front - d_back);
+  const Z_main_ridge = H * m_host;
+  const fits = Z_dormer_ridge < Z_main_ridge
+    && d_back > 0
+    && d_valley_at_cheek < d_front
+    && d_valley_at_cheek > d_back
+    && Z_cheek > z_main_front;
   return {
     xCenter: p.xAlongHostRidge,
-    y_front,
+    sideSign,
+    d_front,
+    d_back,
+    d_valley_at_cheek,
+    y_front: sideSign * d_front,
+    y_back: sideSign * d_back,
+    y_valley_at_cheek: sideSign * d_valley_at_cheek,
     z_main_front,
     Z_dormer_ridge,
     Z_cheek,
-    Y_back,
-    Y_valley_at_cheek,
     h_cheek: Z_cheek - z_main_front,
     h_peak: Z_dormer_ridge - z_main_front,
     m_host,
     m_d,
     L_cheek_horizontal,
     L_valley_horizontal,
-    L_dormer_ridge: y_front - Y_back,
+    L_dormer_ridge,
+    fits,
   };
 }
 
@@ -96,17 +114,18 @@ function rectanglePolygon(width: number, height: number): Polygon {
 }
 
 function dormerCommonRafterPolygon(g: DormerGableGeom, W: number): Polygon {
+  const rise = Math.max(0, g.h_peak - g.h_cheek);
   return [
     [0, 0],
     [W / 2, 0],
-    [W / 2, g.h_peak - g.h_cheek],
+    [W / 2, rise],
   ];
 }
 
-function dormerValleyJackPolygon(g: DormerGableGeom, W: number, y_jack: number): Polygon {
-  const span = g.Y_valley_at_cheek - g.Y_back;
-  const t = span === 0 ? 0 : (g.Y_valley_at_cheek - y_jack) / span;
-  const run_jack = (W / 2) * t;
+function dormerValleyJackPolygon(g: DormerGableGeom, W: number, d_jack: number): Polygon {
+  const span = g.d_valley_at_cheek - g.d_back;
+  const t = span <= 0 ? 0 : (g.d_valley_at_cheek - d_jack) / span;
+  const run_jack = Math.max(0, (W / 2) * t);
   const rise_jack = run_jack * g.m_d;
   return [
     [0, 0],
@@ -176,12 +195,12 @@ export function computeDormerGable(
   const eps = 1e-9;
 
   let jackIndex = 0;
-  for (let y = g.Y_back; y <= g.Y_valley_at_cheek + eps; y += spacing) {
-    if (y < g.Y_back - eps) continue;
-    if (y > g.Y_valley_at_cheek + eps) break;
+  for (let d = g.d_back; d <= g.d_valley_at_cheek + eps; d += spacing) {
+    if (d < g.d_back - eps) continue;
+    if (d > g.d_valley_at_cheek + eps) break;
     for (const side of ['east', 'west'] as const) {
       newPieces.push({
-        polygon: dormerValleyJackPolygon(g, W, y),
+        polygon: dormerValleyJackPolygon(g, W, d),
         op: 'cut',
         label: 'valley-jack',
         placement: { kind: 'dormer-valley-jack', dormerId, indexAlongRidge: jackIndex, side },
@@ -192,9 +211,9 @@ export function computeDormerGable(
   }
 
   let commonIndex = 0;
-  for (let y = g.Y_valley_at_cheek; y <= g.y_front + eps; y += spacing) {
-    if (y < g.Y_valley_at_cheek - eps) continue;
-    if (y > g.y_front + eps) break;
+  for (let d = g.d_valley_at_cheek; d <= g.d_front + eps; d += spacing) {
+    if (d < g.d_valley_at_cheek - eps) continue;
+    if (d > g.d_front + eps) break;
     for (const side of ['east', 'west'] as const) {
       newPieces.push({
         polygon: dormerCommonRafterPolygon(g, W),
@@ -208,7 +227,7 @@ export function computeDormerGable(
   }
 
   const valleyLines: Line3[] = [];
-  const wingRidgeEndpoint: Vec3 = [g.xCenter, g.Y_back, g.Z_dormer_ridge];
+  const wingRidgeEndpoint: Vec3 = [g.xCenter, g.y_back, g.Z_dormer_ridge];
 
   return {
     newPieces,

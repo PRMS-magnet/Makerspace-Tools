@@ -111,7 +111,7 @@ export function buildingCutlist(
       try {
         all3D.push(resolvePiece(piece, ctx));
       } catch {
-        // leave 2D piece in cut list; 3D placement unresolvable for this kind yet
+        // 2D piece still appears in cut list; 3D placement unresolvable for this kind yet
       }
     }
 
