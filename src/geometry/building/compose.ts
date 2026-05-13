@@ -89,8 +89,9 @@ export function buildingCutlist(
 
   const perIntersection: Record<string, IntersectionDerived> = {};
   for (const inter of b.intersections) {
+    const isDormer = inter.kind === 'dormer-gable' || inter.kind === 'dormer-shed';
     const host = b.units.find((u) => u.id === inter.hostId);
-    const guest = b.units.find((u) => u.id === inter.guestId);
+    const guest = isDormer ? host : b.units.find((u) => u.id === inter.guestId);
     if (!host || !guest) {
       throw new Error(`Intersection ${inter.id} refers to unknown unit`);
     }
@@ -104,6 +105,15 @@ export function buildingCutlist(
     }
     allPieces.push(...r.newPieces, ...r.hostPiecesToAdd);
     all3D.push(...r.new3D, ...r.host3DToAdd);
+
+    for (const piece of r.newPieces) {
+      if (!piece.placement) continue;
+      try {
+        all3D.push(resolvePiece(piece, ctx));
+      } catch {
+        // leave 2D piece in cut list; 3D placement unresolvable for this kind yet
+      }
+    }
 
     if (hostOutput && r.trimmerXPositions) {
       const rafter = hostOutput.pieces.find((p) => p.label === 'rafter');
