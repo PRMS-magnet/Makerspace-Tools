@@ -3,6 +3,7 @@ import type { RoofCutlistOptions } from '../roof';
 import { roofPieces, composeRoofCutSvg } from '../roof';
 import { computeIntersection } from './intersect';
 import { buildPlanDiagram } from './diagram';
+import { unitPlacement, applyPlacementToPiece3D } from './place3d';
 import { layoutOnSheet } from '../core/layout';
 import type { Sheet, Piece, Piece3D } from '../core/types';
 
@@ -45,10 +46,12 @@ export function buildingCutlist(
 
   const unitOutputs = b.units.map((u, i) => {
     const r = roofPieces(unitToRoofParams(b, i), opts);
+    const placement = unitPlacement(b, i);
+    const transformed3D = r.pieces3D.map((p) => applyPlacementToPiece3D(p, placement));
     return {
       unit: u,
       pieces: r.pieces,
-      pieces3D: r.pieces3D,
+      pieces3D: transformed3D,
       derived: r.derived,
       diagramSvg: r.diagramSvg,
       warnings: r.warnings,
