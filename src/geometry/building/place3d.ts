@@ -15,20 +15,25 @@ export function unitPlacement(b: Building, unitIndex: number): UnitPlacement {
   const host = b.units[0];
   const guest = b.units[1];
 
+  const Lw = guest.houseLengthIn;
+  const Ww = guest.spanIn;
+  const Lh = host.houseLengthIn;
+  const Yh = host.spanIn;
+
   if (inter.kind === 'cross-gable-T') {
     const xCenter = (inter.placement as { xAlongHostRidge: number }).xAlongHostRidge;
     return {
-      translation: [xCenter + guest.spanIn / 2, host.spanIn, 0],
+      translation: [xCenter, Yh + Lw / 2, 0],
       rotationZRadians: Math.PI / 2,
     };
   }
   if (inter.kind === 'cross-gable-L') {
     const corner = (inter.placement as { hostCorner: 'NW' | 'NE' | 'SW' | 'SE' }).hostCorner;
     switch (corner) {
-      case 'NW': return { translation: [guest.spanIn, host.spanIn, 0], rotationZRadians: Math.PI / 2 };
-      case 'NE': return { translation: [host.houseLengthIn, host.spanIn, 0], rotationZRadians: Math.PI / 2 };
-      case 'SW': return { translation: [0, 0, 0], rotationZRadians: -Math.PI / 2 };
-      case 'SE': return { translation: [host.houseLengthIn - guest.spanIn, 0, 0], rotationZRadians: -Math.PI / 2 };
+      case 'NW': return { translation: [Ww / 2, Yh + Lw / 2, 0], rotationZRadians: Math.PI / 2 };
+      case 'NE': return { translation: [Lh - Ww / 2, Yh + Lw / 2, 0], rotationZRadians: Math.PI / 2 };
+      case 'SW': return { translation: [Ww / 2, -Lw / 2, 0], rotationZRadians: -Math.PI / 2 };
+      case 'SE': return { translation: [Lh - Ww / 2, -Lw / 2, 0], rotationZRadians: -Math.PI / 2 };
     }
   }
   return { translation: [0, 0, 0], rotationZRadians: 0 };
