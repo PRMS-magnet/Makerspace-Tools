@@ -1,4 +1,5 @@
-export interface RoofParams {
+export interface RoofUnit {
+  id: string;
   spanIn: number;
   pitchRise: number;
   pitchRun: number;
@@ -9,12 +10,44 @@ export interface RoofParams {
   rafterSpacingIn: number;
   topPlateHeightIn: number;
   nPairsOverride: number | null;
+}
+
+export interface SheetParams {
   sheetWidthIn: number;
   maxPieceLengthIn: number;
   marginIn: number;
   pieceSpacingIn?: number;
   ridgeEndMarginIn?: number;
   ridgeFaceMarginIn?: number;
+}
+
+export type RoofParams = Omit<RoofUnit, 'id'> & SheetParams;
+
+export function roofParamsToUnit(p: RoofParams, id = 'main'): RoofUnit {
+  return {
+    id,
+    spanIn: p.spanIn,
+    pitchRise: p.pitchRise,
+    pitchRun: p.pitchRun,
+    rafterDepthIn: p.rafterDepthIn,
+    wallThicknessIn: p.wallThicknessIn,
+    overhangRunIn: p.overhangRunIn,
+    houseLengthIn: p.houseLengthIn,
+    rafterSpacingIn: p.rafterSpacingIn,
+    topPlateHeightIn: p.topPlateHeightIn,
+    nPairsOverride: p.nPairsOverride,
+  };
+}
+
+export function roofParamsToSheet(p: RoofParams): SheetParams {
+  return {
+    sheetWidthIn: p.sheetWidthIn,
+    maxPieceLengthIn: p.maxPieceLengthIn,
+    marginIn: p.marginIn,
+    pieceSpacingIn: p.pieceSpacingIn,
+    ridgeEndMarginIn: p.ridgeEndMarginIn,
+    ridgeFaceMarginIn: p.ridgeFaceMarginIn,
+  };
 }
 
 export interface RoofGeometry {
