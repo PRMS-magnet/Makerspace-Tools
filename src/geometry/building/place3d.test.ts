@@ -42,6 +42,7 @@ describe('applyPlacementToPiece3D', () => {
     uAxis: [1, 0, 0],
     vAxis: [0, 1, 0],
     extrudeDepthIn: 0.125,
+    op: 'cut',
   };
 
   it('identity placement returns piece unchanged', () => {

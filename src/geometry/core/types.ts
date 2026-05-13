@@ -22,12 +22,10 @@ export interface Piece {
   polygon: Polygon | PolygonWithHoles;
   op: LaserOp;
   label?: string;
-
-
-
-
-
   rotations?: readonly number[];
+  placement?: PiecePlacement;
+  extrudeDepthIn?: number;
+  unitId?: string;
 }
 
 export interface PlacedPiece extends Piece {
@@ -88,17 +86,27 @@ export interface BBox {
   height: number;
 }
 
-
-
-
-
-export interface Piece3D {
-  polygon: Polygon | PolygonWithHoles;
+export interface Piece3D extends Piece {
   origin: readonly [number, number, number];
   uAxis: readonly [number, number, number];
   vAxis: readonly [number, number, number];
   extrudeDepthIn: number;
-  label?: string;
-  op?: LaserOp;
-  unitId?: string;
 }
+
+export type PiecePlacement =
+  | { kind: 'unit-rafter';      unitId: string; indexAlongRidge: number; side: 'north' | 'south' }
+  | { kind: 'unit-ridge';       unitId: string; segmentIndex: number }
+  | { kind: 'unit-joist';       unitId: string; indexAlongRidge: number }
+  | { kind: 'unit-collar';      unitId: string; indexAlongRidge: number }
+  | { kind: 'unit-top-plate';   unitId: string; side: 'north' | 'south' }
+  | { kind: 'cross-gable-trimmer'; hostId: string; xAlongHostRidge: number }
+  | { kind: 'unit-purlin';         unitId: string; side: 'north' | 'south' }
+  | { kind: 'dormer-cheek-wall';   dormerId: string; side: 'east' | 'west' }
+  | { kind: 'dormer-front-wall';   dormerId: string }
+  | { kind: 'dormer-ridge';        dormerId: string }
+  | { kind: 'dormer-rafter';       dormerId: string; indexAlongRidge: number; side: 'east' | 'west' }
+  | { kind: 'dormer-valley-jack';  dormerId: string; indexAlongRidge: number; side: 'east' | 'west' }
+  | { kind: 'dormer-rafter-plate'; dormerId: string; side: 'east' | 'west' }
+  | { kind: 'dormer-cali-valley';  dormerId: string; side: 'east' | 'west' }
+  | { kind: 'shed-dormer-cripple'; dormerId: string; indexAlongRidge: number }
+  | { kind: 'shed-dormer-header';  dormerId: string };

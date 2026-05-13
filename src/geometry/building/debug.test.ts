@@ -98,6 +98,7 @@ describe('piece3DWorldCorners is consistent with origin + axes math', () => {
       extrudeDepthIn: 0.125,
       label: 'rafter',
       unitId: 'test',
+      op: 'cut' as const,
     };
     const corners = piece3DWorldCorners(piece);
     expect(corners[0]).toEqual([10, 20, 5]);

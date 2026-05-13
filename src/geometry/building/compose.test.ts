@@ -3,6 +3,7 @@ import type { RoofParams } from '../roof/types';
 import { roofCutlist } from '../roof';
 import { buildingCutlist } from './compose';
 import { simpleGablePreset, lPlanPreset, tPlanPreset } from './presets';
+import baselinePieces3D from './__snapshots__/simple-gable-pieces3d.json';
 
 const DEFAULTS: RoofParams = {
   spanIn: 8.75, pitchRise: 8, pitchRun: 12, rafterDepthIn: 0.5,
@@ -77,5 +78,21 @@ describe('buildingCutlist with cross-gable-L', () => {
   it('derived has exactly one valley', () => {
     const i = Object.values(out.derived.perIntersection)[0];
     expect(i.valleyLines.length).toBe(1);
+  });
+});
+
+describe('Bit-identical pieces3D baseline (refactor regression gate)', () => {
+  it('roofCutlist with DEFAULTS produces pieces3D matching the frozen baseline', () => {
+    const out = roofCutlist(DEFAULTS);
+    expect(out.pieces3D.length).toBe(baselinePieces3D.length);
+    for (let i = 0; i < out.pieces3D.length; i++) {
+      const got = out.pieces3D[i];
+      const want = baselinePieces3D[i];
+      expect(got.label).toBe(want.label);
+      expect(got.origin).toEqual(want.origin);
+      expect(got.uAxis).toEqual(want.uAxis);
+      expect(got.vAxis).toEqual(want.vAxis);
+      expect(got.extrudeDepthIn).toBeCloseTo(want.extrudeDepthIn, 9);
+    }
   });
 });

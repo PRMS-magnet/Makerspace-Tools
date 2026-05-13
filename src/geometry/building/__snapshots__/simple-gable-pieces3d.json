@@ -1,0 +1,173 @@
+[
+  {
+    "label": "rafter",
+    "origin": [
+      -0.4375,
+      0,
+      0
+    ],
+    "uAxis": [
+      0,
+      1,
+      0
+    ],
+    "vAxis": [
+      0,
+      0,
+      1
+    ],
+    "extrudeDepthIn": 0.125
+  },
+  {
+    "label": "rafter",
+    "origin": [
+      -0.4375,
+      0,
+      0
+    ],
+    "uAxis": [
+      0,
+      1,
+      0
+    ],
+    "vAxis": [
+      0,
+      0,
+      1
+    ],
+    "extrudeDepthIn": 0.125
+  },
+  {
+    "label": "joist",
+    "origin": [
+      -0.4375,
+      0,
+      0
+    ],
+    "uAxis": [
+      0,
+      1,
+      0
+    ],
+    "vAxis": [
+      0,
+      0,
+      1
+    ],
+    "extrudeDepthIn": 0.125
+  },
+  {
+    "label": "collar tie",
+    "origin": [
+      -0.4375,
+      0,
+      0
+    ],
+    "uAxis": [
+      0,
+      1,
+      0
+    ],
+    "vAxis": [
+      0,
+      0,
+      1
+    ],
+    "extrudeDepthIn": 0.125
+  },
+  {
+    "label": "rafter",
+    "origin": [
+      0.4375,
+      0,
+      0
+    ],
+    "uAxis": [
+      0,
+      1,
+      0
+    ],
+    "vAxis": [
+      0,
+      0,
+      1
+    ],
+    "extrudeDepthIn": 0.125
+  },
+  {
+    "label": "rafter",
+    "origin": [
+      0.4375,
+      0,
+      0
+    ],
+    "uAxis": [
+      0,
+      1,
+      0
+    ],
+    "vAxis": [
+      0,
+      0,
+      1
+    ],
+    "extrudeDepthIn": 0.125
+  },
+  {
+    "label": "joist",
+    "origin": [
+      0.4375,
+      0,
+      0
+    ],
+    "uAxis": [
+      0,
+      1,
+      0
+    ],
+    "vAxis": [
+      0,
+      0,
+      1
+    ],
+    "extrudeDepthIn": 0.125
+  },
+  {
+    "label": "collar tie",
+    "origin": [
+      0.4375,
+      0,
+      0
+    ],
+    "uAxis": [
+      0,
+      1,
+      0
+    ],
+    "vAxis": [
+      0,
+      0,
+      1
+    ],
+    "extrudeDepthIn": 0.125
+  },
+  {
+    "label": "ridge",
+    "origin": [
+      -0.4375,
+      0.0625,
+      2.583333333333333
+    ],
+    "uAxis": [
+      1,
+      0,
+      0
+    ],
+    "vAxis": [
+      0,
+      0,
+      1
+    ],
+    "extrudeDepthIn": 0.125
+  }
+]
