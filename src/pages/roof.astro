@@ -1,0 +1,740 @@
+---
+import Layout from '../layouts/Layout.astro';
+import FormGroup from '../components/FormGroup.astro';
+import NumberField from '../components/NumberField.astro';
+import CheckboxField from '../components/CheckboxField.astro';
+import ViewToggleBar from '../components/ViewToggleBar.astro';
+import ViewSlot from '../components/ViewSlot.astro';
+import Button from '../components/Button.astro';
+import EmptyState from '../components/EmptyState.astro';
+import ToolPageHeader from '../components/ToolPageHeader.astro';
+import ToolLayout from '../components/ToolLayout.astro';
+import ToolActionBar from '../components/ToolActionBar.astro';
+import SavePresetDialog from '../components/SavePresetDialog.astro';
+
+const previewViews = [
+  { key: 'view3d', label: '3D view' },
+  { key: 'diagram', label: 'Side view' },
+  { key: 'cutlist', label: 'Cut list', defaultVisible: false },
+  { key: 'derived', label: 'Derived', defaultVisible: false },
+  { key: 'warnings', label: 'Warnings' },
+];
+---
+<Layout
+  title="Roof cutlist - Makerspace Tools"
+  description="Gable roof framing for 1:18 miniature houses. Parameters in, cut-list SVG out."
+>
+  <div class="tool-page">
+    <ToolPageHeader title="Roof cutlist" lead="Gable roof framing for miniature houses." backHref="/" />
+
+    <ToolActionBar>
+      <Button id="toggle-sidebar-btn" ariaLabel="Toggle controls" ariaPressed="true">
+        <span class="icon" aria-hidden="true">&#9776;</span><span class="lbl">Controls</span>
+      </Button>
+      <div class="info">
+        <span>Machine: <strong id="active-machine-name">&mdash;</strong></span>
+        <span>Material: <strong id="active-material-name">&mdash;</strong></span>
+      </div>
+      <label class="preset-picker">
+        Preset
+        <select id="tool-preset-select"></select>
+      </label>
+      <Button id="save-preset-btn">Save preset</Button>
+      <span class="grow"></span>
+      <span class="sep" aria-hidden="true"></span>
+      <Button variant="primary" id="download-cut-btn">Download cut list</Button>
+      <Button id="download-diag-btn">Download diagram</Button>
+    </ToolActionBar>
+
+    <ToolLayout>
+      <form id="params" slot="sidebar" onsubmit="return false">
+        <FormGroup label="Roof geometry">
+          <NumberField name="spanIn" label="Span (in)" value={8.75} step={0.0625} min={0.1} />
+          <NumberField name="pitchRise" label="Pitch rise" value={8} step={1} min={1} />
+          <NumberField name="pitchRun" label="Pitch run" value={12} step={1} min={1} />
+          <NumberField name="rafterDepthIn" label="Rafter depth (in)" value={0.5} step={0.0625} min={0.0625} />
+          <NumberField name="wallThicknessIn" label="Wall thickness (in)" value={0.25} step={0.0625} min={0.0625} />
+          <NumberField name="overhangRunIn" label="Overhang run (in)" value={0.5} step={0.0625} min={0} />
+        </FormGroup>
+        <FormGroup label="Ridge peek">
+          <NumberField name="ridgeEndMarginIn" label="End peek (in, along ridge)" value={0} step={0.0625} min={0} />
+          <NumberField name="ridgeFaceMarginIn" label="Face peek (in, top/bottom)" value={0.125} step={0.0625} min={0} />
+        </FormGroup>
+        <FormGroup label="House &amp; spacing">
+          <NumberField name="houseLengthIn" label="House length (in)" value={10} step={0.25} min={0.5} />
+          <NumberField name="rafterSpacingIn" label="Rafter spacing (in)" value={0.875} step={0.125} min={0.125} />
+          <NumberField name="topPlateHeightIn" label="Top plate height (in)" value={0.25} step={0.0625} min={0.0625} />
+          <CheckboxField name="useOverride" label="Override pair count" checked={true} />
+          <NumberField name="nPairsOverride" label="Pair count" value={2} step={1} min={1} max={200} />
+        </FormGroup>
+        <FormGroup label="Stock">
+          <NumberField name="sheetWidthIn" label="Sheet width (in)" value={12} step={0.5} min={1} />
+          <NumberField name="maxPieceLengthIn" label="Max piece length (in)" value={12} step={0.5} min={1} />
+          <NumberField name="marginIn" label="Margin (in)" value={0.12} step={0.01} min={0} />
+          <NumberField name="pieceSpacingIn" label="Piece spacing (in)" value={0.06} step={0.01} min={0} />
+          <CheckboxField name="smartPacking" label="Smart packing (slower, denser)" checked={true} />
+        </FormGroup>
+        <Button id="reset-btn" variant="subtle" block={true}>Reset to preset</Button>
+      </form>
+
+      <div slot="main" class="preview">
+        <ViewToggleBar options={previewViews} />
+        <EmptyState id="empty-state">Toggle a view above to see the output.</EmptyState>
+
+        <div class="view-grid">
+          <ViewSlot name="view3d" label="3D view">
+            <div
+              id="view3d-host"
+              class="view3d-host"
+              tabindex="0"
+              role="img"
+              aria-label="3D preview of the roof framing. Use the controls below for the same data as text."
+              aria-describedby="derived"
+            ></div>
+          </ViewSlot>
+          <ViewSlot name="diagram" label="Side view">
+            <div id="diagram-preview" class="svg-slot"></div>
+          </ViewSlot>
+          <ViewSlot name="cutlist" label="Cut list layout">
+            <div id="cutlist-preview" class="svg-slot"></div>
+          </ViewSlot>
+          <ViewSlot name="derived" label="Derived dimensions">
+            <dl id="derived" aria-live="polite"></dl>
+          </ViewSlot>
+          <ViewSlot name="warnings" label="Warnings">
+            <div id="warnings" class="warnings" aria-live="polite"></div>
+          </ViewSlot>
+        </div>
+      </div>
+    </ToolLayout>
+  </div>
+
+  <SavePresetDialog id="save-preset-dialog" />
+</Layout>
+
+<style>
+  .tool-page {
+    max-width: 100%;
+    padding: 20px 24px 40px;
+    box-sizing: border-box;
+  }
+
+  .tool-action-bar .info { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); }
+  .tool-action-bar .grow { flex: 1; min-width: 8px; }
+  .tool-action-bar .sep {
+    display: inline-block; width: 1px; height: 20px;
+    background: var(--rule); margin: 0 4px;
+    align-self: center;
+  }
+  .tool-action-bar .preset-picker { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .tool-action-bar select {
+    font-family: inherit; font-size: 14px; padding: 4px 6px;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--rule);
+    min-height: 32px;
+  }
+  .icon { font-size: 14px; }
+
+  .preview {
+    min-width: 0;
+    max-width: 1400px;
+  }
+
+  .view-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .svg-slot {
+    background: var(--bg); border: 1px solid var(--rule);
+    padding: 12px; min-height: 120px;
+    overflow: hidden;
+  }
+  .svg-slot svg { display: block; width: 100%; height: auto; max-width: 100%; }
+
+  .view3d-host {
+    background: var(--bg); border: 1px solid var(--rule);
+    height: 420px; min-height: 320px;
+    overflow: hidden;
+    position: relative;
+  }
+  .view3d-host canvas { display: block; width: 100%; height: 100%; }
+
+  dl#derived { font-size: 14px; margin: 0; padding: 12px 16px; border: 1px solid var(--rule); }
+  dl#derived dt { color: var(--subtle); margin-top: 4px; font-size: 13px; }
+  dl#derived dt:first-child { margin-top: 0; }
+  dl#derived dd { margin: 0; }
+
+  .warnings { font-size: 14px; padding: 12px 16px; border: 1px solid var(--rule); }
+  .warnings:empty::before { content: "No warnings."; color: var(--subtle); font-style: italic; }
+  .warnings .warn { border-left: 2px solid var(--fg); padding-left: 10px; margin-bottom: 4px; font-style: italic; }
+  .warnings .invalid { border-left-color: var(--invalid); color: var(--invalid); font-style: normal; }
+
+  @media (max-width: 820px) {
+    .tool-page { padding: 14px 14px 30px; }
+    .tool-action-bar { gap: 8px; padding: 8px 10px; font-size: 13px; }
+    .tool-action-bar .info { flex-basis: 100%; order: 10; font-size: 13px; }
+    .tool-action-bar .sep { display: none; }
+    .tool-action-bar .lbl { display: none; }
+  }
+
+  @media (max-width: 520px) {
+    .tool-page { padding: 12px 12px 28px; }
+    .tool-action-bar .preset-picker { flex-basis: 100%; order: 11; }
+    .tool-action-bar select { width: 100%; min-height: 36px; }
+  }
+
+  @media (pointer: coarse) {
+    .tool-action-bar select { min-height: 38px; padding: 6px 8px; font-size: 15px; }
+  }
+</style>
+
+<script>
+  import { roofPieces, composeRoofCutSvg } from '../geometry/roof';
+  import { packInWorker, bboxLayoutOnSheet } from '../geometry/core/packing';
+  import type { RoofParams } from '../geometry/roof/types';
+  import { getActiveMachine } from '../state/presets/machine';
+  import { getActiveMaterial } from '../state/presets/material';
+  import { listToolPresets, saveToolPreset, getActiveToolPreset, setActiveToolPresetId } from '../state/presets/tool';
+  import { downloadSvg } from '../lib/download';
+  import { makeReorderable } from '../lib/reorderable';
+  import { getCurrentTokens } from '../lib/diagram-tokens';
+
+  const form = document.getElementById('params') as HTMLFormElement;
+  const diagramSlot = document.getElementById('diagram-preview')!;
+  const cutSlot = document.getElementById('cutlist-preview')!;
+  const derivedEl = document.getElementById('derived')!;
+  const warningsEl = document.getElementById('warnings')!;
+  const machineNameEl = document.getElementById('active-machine-name')!;
+  const materialNameEl = document.getElementById('active-material-name')!;
+  const presetSelect = document.getElementById('tool-preset-select') as HTMLSelectElement;
+  const saveBtn = document.getElementById('save-preset-btn') as HTMLButtonElement;
+  const saveDialog = document.getElementById('save-preset-dialog') as HTMLDialogElement;
+  const cutDownloadBtn = document.getElementById('download-cut-btn') as HTMLButtonElement;
+  const diagDownloadBtn = document.getElementById('download-diag-btn') as HTMLButtonElement;
+  const layoutEl = document.querySelector('.tool-layout') as HTMLElement;
+  const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn') as HTMLButtonElement;
+  const viewGrid = document.querySelector('.view-grid') as HTMLElement;
+  const viewToggleInputs = document.querySelectorAll<HTMLInputElement>('input[data-view-toggle]');
+  const viewSlots = document.querySelectorAll<HTMLElement>('[data-view-slot]');
+  const emptyState = document.getElementById('empty-state')!;
+
+  const UI_KEY_SIDEBAR = 'mt:ui:roof:sidebar';
+  const UI_KEY_VIEWS = 'mt:ui:roof:views';
+  const UI_KEY_ORDER = 'mt:ui:roof:order';
+
+  function readParams(): RoofParams {
+    const fd = new FormData(form);
+    const num = (k: string) => Number(fd.get(k));
+    const useOverride = form.elements.namedItem('useOverride') as HTMLInputElement;
+    return {
+      spanIn: num('spanIn'),
+      pitchRise: num('pitchRise'),
+      pitchRun: num('pitchRun'),
+      rafterDepthIn: num('rafterDepthIn'),
+      wallThicknessIn: num('wallThicknessIn'),
+      overhangRunIn: num('overhangRunIn'),
+      houseLengthIn: num('houseLengthIn'),
+      rafterSpacingIn: num('rafterSpacingIn'),
+      topPlateHeightIn: num('topPlateHeightIn'),
+      nPairsOverride: useOverride.checked ? num('nPairsOverride') : null,
+      sheetWidthIn: num('sheetWidthIn'),
+      maxPieceLengthIn: num('maxPieceLengthIn'),
+      marginIn: num('marginIn'),
+      pieceSpacingIn: num('pieceSpacingIn'),
+      ridgeEndMarginIn: num('ridgeEndMarginIn'),
+      ridgeFaceMarginIn: num('ridgeFaceMarginIn'),
+    };
+  }
+
+  function validateParams(p: RoofParams): string | null {
+    const checks: Array<[string, number, number]> = [
+      ['span', p.spanIn, 0.1],
+      ['pitch rise', p.pitchRise, 1],
+      ['pitch run', p.pitchRun, 1],
+      ['rafter depth', p.rafterDepthIn, 0.0625],
+      ['wall thickness', p.wallThicknessIn, 0.0625],
+      ['overhang run', p.overhangRunIn, 0],
+      ['house length', p.houseLengthIn, 0.5],
+      ['rafter spacing', p.rafterSpacingIn, 0.125],
+      ['top plate height', p.topPlateHeightIn, 0.0625],
+      ['sheet width', p.sheetWidthIn, 1],
+      ['max piece length', p.maxPieceLengthIn, 1],
+      ['margin', p.marginIn, 0],
+    ];
+    for (const [name, val, min] of checks) {
+      if (!Number.isFinite(val) || val < min) return `${name} must be at least ${min}`;
+    }
+    const pieceSp = p.pieceSpacingIn;
+    if (pieceSp !== undefined && (!Number.isFinite(pieceSp) || pieceSp < 0)) {
+      return 'piece spacing must be 0 or greater';
+    }
+    const ridgeEnd = p.ridgeEndMarginIn;
+    if (ridgeEnd !== undefined && (!Number.isFinite(ridgeEnd) || ridgeEnd < 0)) {
+      return 'ridge end peek must be 0 or greater';
+    }
+    const ridgeFace = p.ridgeFaceMarginIn;
+    if (ridgeFace !== undefined && (!Number.isFinite(ridgeFace) || ridgeFace < 0)) {
+      return 'ridge face peek must be 0 or greater';
+    }
+    if (p.spanIn <= 2 * p.wallThicknessIn) return 'span must exceed 2x wall thickness';
+    if (p.spanIn <= 2 * p.rafterDepthIn) return 'span must exceed 2x rafter depth';
+    if (p.marginIn * 2 >= p.sheetWidthIn) return 'margin too large for sheet width';
+    if (p.nPairsOverride !== null) {
+      if (!Number.isInteger(p.nPairsOverride) || p.nPairsOverride < 1 || p.nPairsOverride > 200) {
+        return 'pair count must be a whole number from 1 to 200';
+      }
+    }
+    const nPairsImplied = p.nPairsOverride ?? Math.round(p.houseLengthIn / p.rafterSpacingIn) + 1;
+    if (nPairsImplied > 200) {
+      return 'house length / rafter spacing gives too many pairs (max 200); increase spacing or override';
+    }
+    return null;
+  }
+
+  function populateForm(p: RoofParams) {
+    const setVal = (name: string, v: number | null | undefined) => {
+      if (v === undefined) return;
+      const el = form.elements.namedItem(name) as HTMLInputElement;
+      if (el) el.value = String(v ?? '');
+    };
+    setVal('spanIn', p.spanIn);
+    setVal('pitchRise', p.pitchRise);
+    setVal('pitchRun', p.pitchRun);
+    setVal('rafterDepthIn', p.rafterDepthIn);
+    setVal('wallThicknessIn', p.wallThicknessIn);
+    setVal('overhangRunIn', p.overhangRunIn);
+    setVal('houseLengthIn', p.houseLengthIn);
+    setVal('rafterSpacingIn', p.rafterSpacingIn);
+    setVal('topPlateHeightIn', p.topPlateHeightIn);
+    setVal('sheetWidthIn', p.sheetWidthIn);
+    setVal('maxPieceLengthIn', p.maxPieceLengthIn);
+    setVal('marginIn', p.marginIn);
+    setVal('pieceSpacingIn', p.pieceSpacingIn ?? p.marginIn);
+    setVal('ridgeEndMarginIn', p.ridgeEndMarginIn);
+    setVal('ridgeFaceMarginIn', p.ridgeFaceMarginIn);
+    const useOverride = form.elements.namedItem('useOverride') as HTMLInputElement;
+    useOverride.checked = p.nPairsOverride !== null;
+    setVal('nPairsOverride', p.nPairsOverride ?? 2);
+  }
+
+  type ViewerHandle = {
+    setPieces: (p: import('../geometry/core/types').Piece3D[]) => void;
+    setTokens: (t: import('../lib/diagram-tokens').DiagramTokens, opts?: { animate?: boolean; durationMs?: number }) => void;
+    resize: () => void;
+    destroy: () => void;
+  };
+  let viewer3DPromise: Promise<ViewerHandle | null> | null = null;
+  function ensureViewer3D(): Promise<ViewerHandle | null> {
+    if (viewer3DPromise) return viewer3DPromise;
+    const host = document.getElementById('view3d-host') as HTMLElement | null;
+    if (!host) return Promise.resolve(null);
+    viewer3DPromise = import('../lib/roof-viewer-3d')
+      .then((mod) => mod.mountRoofViewer(host, getCurrentTokens()))
+      .catch((err) => {
+        viewer3DPromise = null;
+        console.error('3D viewer failed to mount', err);
+        return null;
+      });
+    return viewer3DPromise;
+  }
+  async function updateViewer3D() {
+    const view3dSlot = document.querySelector('[data-view-slot="view3d"]') as HTMLElement | null;
+    if (!view3dSlot || view3dSlot.hidden) return;
+    const v = await ensureViewer3D();
+    if (!v || !lastValidOutput) return;
+    v.setPieces(lastValidOutput.pieces3D);
+    v.resize();
+  }
+
+  function readOpts() {
+    const fd = new FormData(form);
+    const num = (k: string, fallback: number) => {
+      const v = Number(fd.get(k));
+      return Number.isFinite(v) && v >= 0 ? v : fallback;
+    };
+    const smartPackingEl = form.elements.namedItem('smartPacking') as HTMLInputElement | null;
+    return {
+      ridgeEndMarginIn: num('ridgeEndMarginIn', 0),
+      ridgeFaceMarginIn: num('ridgeFaceMarginIn', 0.125),
+      smartPacking: smartPackingEl?.checked ?? false,
+    };
+  }
+
+  type RoofOutput = {
+    cutSvg: string;
+    diagramSvg: string;
+    derived: import('../geometry/roof').RoofDerived;
+    warnings: string[];
+    pieces3D: import('../geometry/core/types').Piece3D[];
+  };
+
+  let recomputeSeq = 0;
+  let lastValidOutput: RoofOutput | null = null;
+  let lastPackedParams: RoofParams | null = null;
+  let lastPackedPieces: import('../geometry/roof').RoofPiecesResult | null = null;
+  let realtimePackAbort: AbortController | null = null;
+  let lastTightHeightIn: number | null = null;
+
+  function paramsEqual(a: RoofParams | null, b: RoofParams | null): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    const keys = Object.keys(a) as (keyof RoofParams)[];
+    return keys.every((k) => a[k] === b[k]);
+  }
+
+  function appendWarning(parent: HTMLElement, text: string, invalid = false) {
+    const d = document.createElement('div');
+    d.className = invalid ? 'warn invalid' : 'warn';
+    d.textContent = text;
+    parent.appendChild(d);
+  }
+
+  function renderWarnings(base: string[], extra: string[] = []) {
+    warningsEl.replaceChildren();
+    for (const w of [...base, ...extra]) appendWarning(warningsEl, `note: ${w}`);
+  }
+
+  function cutListVisible(): boolean {
+    const slot = document.querySelector('[data-view-slot="cutlist"]') as HTMLElement | null;
+    return !!slot && !slot.hidden;
+  }
+
+  function recompute() {
+    if (recomputeDebounce !== null) {
+      window.clearTimeout(recomputeDebounce);
+      recomputeDebounce = null;
+    }
+    const p = readParams();
+    const err = validateParams(p);
+    if (err) {
+      warningsEl.replaceChildren();
+      appendWarning(warningsEl, `fix this to refresh preview: ${err}`, true);
+      return;
+    }
+
+    const piecesResult = roofPieces(p, { ...readOpts(), colorMode: 'css-vars' });
+    lastPackedPieces = piecesResult;
+    lastPackedParams = p;
+
+    const bbox = bboxLayoutOnSheet(piecesResult.pieces, piecesResult.sheet);
+    const bboxCutSvg = composeRoofCutSvg(bbox.placed, bbox.totalHeightIn, p.sheetWidthIn);
+    const out: RoofOutput = {
+      cutSvg: bboxCutSvg,
+      diagramSvg: piecesResult.diagramSvg,
+      derived: piecesResult.derived,
+      warnings: [...piecesResult.warnings, ...bbox.warnings],
+      pieces3D: piecesResult.pieces3D,
+    };
+    lastValidOutput = out;
+    diagramSlot.innerHTML = out.diagramSvg;
+    if (cutListVisible()) cutSlot.innerHTML = out.cutSvg;
+
+    derivedEl.innerHTML = `
+      <dt>Pitch</dt><dd>${out.derived.geom.thetaDeg.toFixed(2)}&deg; (${p.pitchRise}/${p.pitchRun})</dd>
+      <dt>Rafter slope length</dt><dd>${out.derived.geom.rafterSlopeLength.toFixed(3)}&Prime;</dd>
+      <dt>Plumb cut length</dt><dd>${out.derived.geom.plumbCutLength.toFixed(3)}&Prime;</dd>
+      <dt>Rise at ridge face</dt><dd>${out.derived.geom.riseAtRidgeFace.toFixed(3)}&Prime;</dd>
+      <dt>Heel height</dt><dd>${out.derived.geom.heelHeight.toFixed(4)}&Prime;</dd>
+      <dt>Pieces</dt><dd>${out.derived.nRafters} rafters &middot; ${out.derived.nPairs} joists &middot; ${out.derived.nPairs} ties${out.derived.nRidgePieces > 0 ? ` &middot; ${out.derived.nRidgePieces}&times; ridge (${out.derived.ridgePieceLengthIn.toFixed(3)}&Prime;)` : ''}</dd>
+    `;
+    renderWarnings(out.warnings);
+    scheduleFitLayout();
+    void updateViewer3D();
+
+    if (!cutListVisible()) return;
+
+    if (realtimePackAbort) realtimePackAbort.abort();
+    realtimePackAbort = new AbortController();
+    const signal = realtimePackAbort.signal;
+
+    const stableMinHeightIn = Math.min(lastTightHeightIn ?? bbox.totalHeightIn, bbox.totalHeightIn);
+    const seq = ++recomputeSeq;
+    let pendingPartial: { placed: import('../geometry/core/types').PlacedPiece[]; totalHeightIn: number } | null = null;
+    let partialRafScheduled = false;
+    const flushPartial = () => {
+      partialRafScheduled = false;
+      if (!pendingPartial || seq !== recomputeSeq || !cutListVisible()) return;
+      const h = Math.max(pendingPartial.totalHeightIn, stableMinHeightIn);
+      const svg = composeRoofCutSvg(pendingPartial.placed, h, p.sheetWidthIn);
+      cutSlot.innerHTML = svg;
+      pendingPartial = null;
+    };
+
+    void packInWorker(piecesResult.pieces, piecesResult.sheet, {
+      effort: 'realtime',
+      chunkSize: 4,
+      signal,
+      onPartial: (partial) => {
+        if (seq !== recomputeSeq) return;
+        pendingPartial = partial;
+        if (!partialRafScheduled) {
+          partialRafScheduled = true;
+          requestAnimationFrame(flushPartial);
+        }
+      },
+    }).then((res) => {
+      if (seq !== recomputeSeq) return;
+      if (res.packer !== 'bbox-fallback') {
+        const tighter = composeRoofCutSvg(res.placed, res.totalHeightIn, p.sheetWidthIn);
+        if (lastValidOutput) {
+          lastValidOutput = { ...lastValidOutput, cutSvg: tighter, warnings: [...piecesResult.warnings, ...res.warnings] };
+        }
+        if (cutListVisible()) cutSlot.innerHTML = tighter;
+        lastTightHeightIn = res.totalHeightIn;
+      } else if (res.warnings.length) {
+        renderWarnings(piecesResult.warnings, res.warnings);
+        return;
+      }
+      renderWarnings(piecesResult.warnings, res.warnings);
+    }).catch((err) => {
+      if ((err as Error)?.name === 'AbortError') return;
+      console.error('pack worker error', err);
+      appendWarning(warningsEl, 'smart packing failed; using the simple layout', true);
+    });
+  }
+
+  const MIN_COL_WIDTH_PX = 380;
+  const VIEWPORT_BREATHING_PX = 32;
+
+  let fitRaf: number | null = null;
+  function scheduleFitLayout() {
+    if (fitRaf !== null) return;
+    fitRaf = requestAnimationFrame(() => {
+      fitRaf = null;
+      fitLayout();
+    });
+  }
+
+  function fitLayout() {
+    const visible = [...viewGrid.querySelectorAll<HTMLElement>(':scope > [data-view-slot]:not([hidden])')];
+    if (visible.length === 0) return;
+
+    const containerWidth = viewGrid.offsetWidth;
+    const maxColsByWidth = Math.max(1, Math.floor(containerWidth / MIN_COL_WIDTH_PX));
+    const maxCols = Math.min(visible.length, maxColsByWidth);
+
+    let cols = 1;
+    viewGrid.style.gridTemplateColumns = 'minmax(0, 1fr)';
+    void viewGrid.offsetHeight;
+
+    const availableHeight = window.innerHeight - viewGrid.getBoundingClientRect().top - VIEWPORT_BREATHING_PX;
+
+    while (cols < maxCols && viewGrid.offsetHeight > availableHeight) {
+      cols++;
+      viewGrid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+      void viewGrid.offsetHeight;
+    }
+  }
+
+  function refreshActivePresetDisplay() {
+    machineNameEl.textContent = getActiveMachine().name;
+    materialNameEl.textContent = getActiveMaterial().name;
+  }
+
+  function refreshToolPresetSelect() {
+    const list = listToolPresets<RoofParams>('roof');
+    const active = getActiveToolPreset<RoofParams>('roof');
+    presetSelect.replaceChildren();
+    for (const p of list) {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = `${p.name}${p.builtin ? '' : ' (saved)'}`;
+      if (p.id === active.id) opt.selected = true;
+      presetSelect.appendChild(opt);
+    }
+  }
+
+  function applyViewVisibility() {
+    const visible = new Set<string>();
+    viewToggleInputs.forEach((input) => {
+      if (input.checked) visible.add(input.dataset.viewToggle!);
+    });
+    viewSlots.forEach((slot) => {
+      slot.hidden = !visible.has(slot.dataset.viewSlot!);
+    });
+    emptyState.hidden = visible.size > 0;
+    try { localStorage.setItem(UI_KEY_VIEWS, JSON.stringify([...visible])); } catch {}
+    scheduleFitLayout();
+  }
+
+  function loadViewVisibility() {
+    try {
+      const raw = localStorage.getItem(UI_KEY_VIEWS);
+      if (raw === null) return;
+      const arr: unknown = JSON.parse(raw);
+      if (!Array.isArray(arr)) return;
+      const set = new Set(arr.filter((v): v is string => typeof v === 'string'));
+      viewToggleInputs.forEach((input) => {
+        input.checked = set.has(input.dataset.viewToggle!);
+      });
+    } catch {}
+  }
+
+  function applySidebarState() {
+    const isOpen = layoutEl.dataset.sidebar === 'open';
+    toggleSidebarBtn.setAttribute('aria-pressed', String(isOpen));
+    try { localStorage.setItem(UI_KEY_SIDEBAR, isOpen ? 'open' : 'closed'); } catch {}
+  }
+
+  function loadSidebarState() {
+    try {
+      const v = localStorage.getItem(UI_KEY_SIDEBAR);
+      if (v === 'closed') layoutEl.dataset.sidebar = 'closed';
+    } catch {}
+  }
+
+  function loadSlotOrder() {
+    try {
+      const raw = localStorage.getItem(UI_KEY_ORDER);
+      if (raw === null) return;
+      const order: unknown = JSON.parse(raw);
+      if (!Array.isArray(order)) return;
+      const byKey = new Map<string, HTMLElement>();
+      viewGrid.querySelectorAll<HTMLElement>('[data-view-slot]').forEach((s) => {
+        byKey.set(s.dataset.viewSlot!, s);
+      });
+      for (const v of order) {
+        if (typeof v !== 'string') continue;
+        const el = byKey.get(v);
+        if (el) viewGrid.appendChild(el);
+      }
+    } catch {}
+  }
+
+  viewToggleInputs.forEach((input) => {
+    input.addEventListener('change', () => {
+      applyViewVisibility();
+      if (input.dataset.viewToggle === 'view3d' && input.checked) void updateViewer3D();
+      if (input.dataset.viewToggle === 'cutlist') {
+        if (input.checked) recompute();
+        else if (realtimePackAbort) realtimePackAbort.abort();
+      }
+    });
+  });
+
+  toggleSidebarBtn.addEventListener('click', () => {
+    layoutEl.dataset.sidebar = layoutEl.dataset.sidebar === 'open' ? 'closed' : 'open';
+    applySidebarState();
+    scheduleFitLayout();
+    setTimeout(scheduleFitLayout, 250);
+  });
+
+  window.addEventListener('resize', scheduleFitLayout);
+
+  presetSelect.addEventListener('change', () => {
+    setActiveToolPresetId('roof', presetSelect.value);
+    const active = getActiveToolPreset<RoofParams>('roof');
+    populateForm(active.params);
+    recompute();
+  });
+
+  saveBtn.addEventListener('click', () => { saveDialog.showModal(); });
+
+  saveDialog.addEventListener('click', (e) => {
+    if (e.target === saveDialog) saveDialog.close();
+  });
+
+  saveDialog.addEventListener('close', () => {
+    if (saveDialog.returnValue !== 'confirm') return;
+    const nameInput = saveDialog.querySelector('input[name="preset-name"]') as HTMLInputElement | null;
+    if (!nameInput) return;
+    const name = nameInput.value.trim();
+    if (!name) return;
+    const id = `user-roof-${Date.now()}`;
+    saveToolPreset<RoofParams>('roof', {
+      id, toolSlug: 'roof', name, params: readParams(), createdAt: new Date().toISOString(),
+    });
+    setActiveToolPresetId('roof', id);
+    nameInput.value = '';
+    refreshToolPresetSelect();
+  });
+
+  cutDownloadBtn.addEventListener('click', async () => {
+    const presetName = getActiveToolPreset<RoofParams>('roof').name.replace(/[^a-z0-9]+/gi, '-');
+    const date = new Date().toISOString().slice(0, 10);
+    const p = readParams();
+    if (validateParams(p)) return;
+    const piecesResult = paramsEqual(p, lastPackedParams) && lastPackedPieces
+      ? lastPackedPieces
+      : roofPieces(p, readOpts());
+
+    const prevText = cutDownloadBtn.textContent ?? 'Download cut list';
+    cutDownloadBtn.disabled = true;
+    cutDownloadBtn.textContent = 'Exporting 0%';
+    try {
+      const res = await packInWorker(piecesResult.pieces, piecesResult.sheet, {
+        effort: 'high',
+        onProgress: (pct) => {
+          cutDownloadBtn.textContent = `Exporting ${Math.round(pct * 100)}%`;
+        },
+      });
+      const svg = res.packer !== 'bbox-fallback'
+        ? composeRoofCutSvg(res.placed, res.totalHeightIn, p.sheetWidthIn)
+        : lastValidOutput?.cutSvg ?? composeRoofCutSvg(
+            bboxLayoutOnSheet(piecesResult.pieces, piecesResult.sheet).placed,
+            bboxLayoutOnSheet(piecesResult.pieces, piecesResult.sheet).totalHeightIn,
+            p.sheetWidthIn,
+          );
+      downloadSvg(svg, `roof-cutlist-${presetName}-${date}.svg`);
+    } catch (err) {
+      console.error('cut list download failed', err);
+      appendWarning(warningsEl, 'cut list export failed; try again', true);
+    } finally {
+      cutDownloadBtn.disabled = false;
+      cutDownloadBtn.textContent = prevText;
+    }
+  });
+
+  diagDownloadBtn.addEventListener('click', () => {
+    const presetName = getActiveToolPreset<RoofParams>('roof').name.replace(/[^a-z0-9]+/gi, '-');
+    const date = new Date().toISOString().slice(0, 10);
+    const p = readParams();
+    if (validateParams(p)) return;
+    const lightOut = roofPieces(p, readOpts());
+    downloadSvg(lightOut.diagramSvg, `roof-diagram-${presetName}-${date}.svg`);
+  });
+
+  let recomputeDebounce: number | null = null;
+  function debouncedRecompute() {
+    if (recomputeDebounce !== null) window.clearTimeout(recomputeDebounce);
+    recomputeDebounce = window.setTimeout(() => {
+      recomputeDebounce = null;
+      recompute();
+    }, 200);
+  }
+  form.addEventListener('input', debouncedRecompute);
+  document.getElementById('reset-btn')!.addEventListener('click', () => {
+    const active = getActiveToolPreset<RoofParams>('roof');
+    populateForm(active.params);
+    recompute();
+  });
+
+  loadSidebarState();
+  loadViewVisibility();
+  loadSlotOrder();
+  applySidebarState();
+  applyViewVisibility();
+
+  makeReorderable(viewGrid, {
+    onReorder: (keys) => {
+      try { localStorage.setItem(UI_KEY_ORDER, JSON.stringify(keys)); } catch {}
+      scheduleFitLayout();
+    },
+  });
+
+  refreshActivePresetDisplay();
+  refreshToolPresetSelect();
+  populateForm(getActiveToolPreset<RoofParams>('roof').params);
+  recompute();
+
+  let themeSeq = 0;
+  const themeObserver = new MutationObserver(async () => {
+    if (!viewer3DPromise) return;
+    const mySeq = ++themeSeq;
+    const v = await viewer3DPromise;
+    if (!v || mySeq !== themeSeq) return;
+    v.setTokens(getCurrentTokens());
+  });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+</script>

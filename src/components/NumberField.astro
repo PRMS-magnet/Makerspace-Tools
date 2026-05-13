@@ -1,0 +1,53 @@
+---
+interface Props {
+  name: string;
+  label: string;
+  value: number;
+  step?: number;
+  min?: number;
+  max?: number;
+  required?: boolean;
+  disabled?: boolean;
+}
+const {
+  name,
+  label,
+  value,
+  step,
+  min,
+  max,
+  required = true,
+  disabled = false,
+} = Astro.props;
+---
+<label class="nf">
+  <span>{label}</span>
+  <input
+    name={name}
+    type="number"
+    value={value}
+    step={step}
+    min={min}
+    max={max}
+    required={required}
+    disabled={disabled}
+  />
+</label>
+
+<style>
+  .nf { display: block; font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+  .nf > span { display: block; margin-bottom: 2px; }
+  .nf input {
+    display: block; width: 100%; box-sizing: border-box;
+    font-family: inherit; font-size: 15px;
+    background: var(--bg); color: var(--fg);
+    border: 1px solid var(--rule); padding: 5px 8px;
+    min-height: 30px;
+  }
+  .nf input:invalid { border-color: #c0392b; }
+  .nf input:disabled { opacity: 0.5; }
+
+    @media (pointer: coarse) {
+    .nf input { font-size: 16px; min-height: 40px; padding: 8px 10px; }
+  }
+</style>

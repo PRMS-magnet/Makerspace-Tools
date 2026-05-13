@@ -1,0 +1,63 @@
+---
+interface Props {
+  title: string;
+  lead?: string;
+  backHref?: string;
+  backLabel?: string;
+  sourceHref?: string;
+}
+const {
+  title,
+  lead,
+  backHref,
+  backLabel = '<- index',
+  sourceHref = '#',
+} = Astro.props;
+---
+<header class="tool-page-header">
+  <div class="row">
+    <div class="left">
+      {backHref && <a href={backHref}>{backLabel}</a>}
+    </div>
+    <div class="right">
+      <slot name="rightLinks">
+        <a href={sourceHref}>source</a>
+        <button type="button" id="theme-toggle" class="theme-toggle" aria-pressed="false">dark mode</button>
+      </slot>
+    </div>
+  </div>
+  <h1>{title}</h1>
+  {lead && <p class="lead">{lead}</p>}
+</header>
+
+<style>
+  .tool-page-header { margin-bottom: 16px; }
+  .row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 16px; margin-bottom: 14px; font-size: 14px;
+  }
+  .right { display: flex; gap: 16px; align-items: baseline; }
+  h1 { font-size: 26px; margin: 0 0 4px; line-height: 1.15; }
+  .lead { margin: 0; font-size: 14px; color: var(--muted); }
+
+  .theme-toggle {
+    font-family: inherit;
+    font-size: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    color: var(--link);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .theme-toggle:hover { text-decoration: none; }
+
+  @media (pointer: coarse) {
+    .row a, .theme-toggle {
+      display: inline-block;
+      padding: 8px 4px;
+      min-height: 32px;
+    }
+  }
+</style>

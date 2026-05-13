@@ -1,0 +1,29 @@
+{
+  "name": "makerspace-tools",
+  "version": "0.1.0",
+  "description": "Frontend-local utilities for a 1:18 miniature-house project. Parameters in, SVG out.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@types/three": "^0.184.1",
+    "astro": "^6.0.0",
+    "three": "^0.184.0"
+  },
+  "devDependencies": {
+    "@astrojs/sitemap": "^3.7.2",
+    "@types/node": "^25.7.0",
+    "fast-check": "^4.8.0",
+    "jsdom": "^29.1.1",
+    "typescript": "^6.0.3",
+    "vitest": "^3.2.4"
+  }
+}

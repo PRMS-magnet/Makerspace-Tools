@@ -1,0 +1,18 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ToolPageHeader from '../components/ToolPageHeader.astro';
+---
+<Layout title="Not found - Makerspace Tools" description="The page you were looking for does not exist.">
+  <div class="page">
+    <ToolPageHeader title="Not found" lead="That page does not exist." />
+    <p><a href="/">Back to the index.</a></p>
+  </div>
+</Layout>
+
+<style>
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px 24px 56px;
+  }
+</style>

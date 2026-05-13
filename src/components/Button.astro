@@ -1,0 +1,56 @@
+---
+interface Props {
+  variant?: 'primary' | 'ghost' | 'subtle';
+  type?: 'button' | 'submit' | 'reset';
+  id?: string;
+  ariaLabel?: string;
+  ariaPressed?: 'true' | 'false';
+  block?: boolean;
+  formnovalidate?: boolean;
+  value?: string;
+  class?: string;
+}
+const {
+  variant = 'ghost',
+  type = 'button',
+  id,
+  ariaLabel,
+  ariaPressed,
+  block = false,
+  formnovalidate,
+  value,
+  class: extraClass = '',
+} = Astro.props;
+---
+<button
+  type={type}
+  id={id}
+  class={`btn btn-${variant} ${block ? 'btn-block' : ''} ${extraClass}`}
+  aria-label={ariaLabel}
+  aria-pressed={ariaPressed}
+  formnovalidate={formnovalidate}
+  value={value}
+>
+  <slot />
+</button>
+
+<style>
+  .btn {
+    font-family: inherit; font-size: 14px; padding: 6px 12px; cursor: pointer;
+    border: 1px solid var(--rule);
+    display: inline-flex; align-items: center; gap: 6px;
+    min-height: 32px;
+    line-height: 1.2;
+  }
+  .btn-ghost { background: var(--bg); color: var(--fg); }
+  .btn-ghost:hover { border-color: var(--link); color: var(--link); }
+  .btn-primary { background: var(--link); color: var(--bg); border-color: var(--link); }
+  .btn-primary:hover { filter: brightness(1.1); color: var(--bg); }
+  .btn-subtle { background: var(--bg); color: var(--muted); }
+  .btn-subtle:hover { color: var(--fg); border-color: var(--fg); }
+  .btn-block { display: flex; width: 100%; justify-content: center; }
+
+    @media (pointer: coarse) {
+    .btn { min-height: 40px; padding: 8px 14px; font-size: 15px; }
+  }
+</style>

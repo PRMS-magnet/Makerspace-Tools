@@ -1,0 +1,62 @@
+---
+import Button from './Button.astro';
+
+interface Props {
+  id: string;
+  title?: string;
+  placeholder?: string;
+}
+const { id, title = 'Save preset', placeholder = 'Preset name' } = Astro.props;
+---
+<dialog id={id} class="save-preset-dialog">
+  <form method="dialog">
+    <h3>{title}</h3>
+    <label class="dlg-label">
+      <span>Name</span>
+      <input name="preset-name" type="text" required placeholder={placeholder} />
+    </label>
+    <menu>
+      <Button type="submit" value="cancel" formnovalidate={true}>Cancel</Button>
+      <Button type="submit" variant="primary" value="confirm">Save</Button>
+    </menu>
+  </form>
+</dialog>
+
+<style>
+  .save-preset-dialog {
+    border: 1px solid var(--rule); padding: 18px;
+    background: var(--bg); color: var(--fg); min-width: 320px;
+  }
+  .save-preset-dialog h3 {
+    font-size: 16px; font-weight: 600; margin: 0 0 12px;
+  }
+  .save-preset-dialog .dlg-label {
+    display: block; font-size: 14px; color: var(--muted); margin-bottom: 8px;
+  }
+  .save-preset-dialog .dlg-label span { display: block; margin-bottom: 4px; }
+  .save-preset-dialog .dlg-label input {
+    display: block; width: 100%; box-sizing: border-box;
+    font-family: inherit; font-size: 15px;
+    background: var(--bg); color: var(--fg);
+    border: 1px solid var(--rule); padding: 6px 8px;
+    min-height: 34px;
+  }
+  .save-preset-dialog menu {
+    display: flex; gap: 8px; justify-content: flex-end;
+    padding: 0; margin: 14px 0 0;
+  }
+  .save-preset-dialog::backdrop { background: rgba(0, 0, 0, 0.3); }
+
+  @media (max-width: 520px) {
+    .save-preset-dialog {
+      min-width: auto;
+      width: calc(100vw - 32px);
+      max-width: 100%;
+    }
+  }
+  @media (pointer: coarse) {
+    .save-preset-dialog .dlg-label input {
+      font-size: 16px; min-height: 42px; padding: 10px 12px;
+    }
+  }
+</style>

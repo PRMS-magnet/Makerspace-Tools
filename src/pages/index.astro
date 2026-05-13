@@ -1,0 +1,49 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ToolPageHeader from '../components/ToolPageHeader.astro';
+import { TOOLS } from '../data/tools';
+---
+<Layout title="Makerspace Tools">
+  <div class="index-page">
+    <ToolPageHeader
+      title="Makerspace Tools"
+      lead="Runs pure geometry in the browser and exports files for laser cutting, printing, or import into CAD."
+    />
+
+    <ul class="tools">
+      {TOOLS.map((t) => (
+        <li>
+          {t.status === 'ready' ? (
+            <a href={`/${t.slug}`}>{t.name}</a>
+          ) : (
+            <span class="disabled">{t.name}</span>
+          )}
+          <span>
+            {' '}&mdash; {t.blurb}
+            {t.status !== 'ready' && (
+              <span class="status"> ({t.status})</span>
+            )}
+          </span>
+        </li>
+      ))}
+    </ul>
+  </div>
+</Layout>
+
+<style>
+  .index-page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px 24px 56px;
+    box-sizing: border-box;
+  }
+  ul.tools { margin: 0; padding-left: 22px; font-size: 15px; line-height: 1.55; }
+  ul.tools li { margin-bottom: 6px; }
+  .disabled { color: var(--subtle); }
+  .status { font-style: italic; color: var(--subtle); }
+
+  @media (max-width: 520px) {
+    .index-page { padding: 16px 16px 40px; }
+    ul.tools { padding-left: 20px; }
+  }
+</style>

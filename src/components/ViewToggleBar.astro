@@ -1,0 +1,51 @@
+---
+export interface ViewOption {
+  key: string;
+  label: string;
+  defaultVisible?: boolean;
+}
+interface Props {
+  options: ViewOption[];
+  ariaLabel?: string;
+}
+const { options, ariaLabel = 'Visible views' } = Astro.props;
+---
+<div class="view-toggle-bar" role="group" aria-label={ariaLabel}>
+  <span class="vt-label">Show:</span>
+  {options.map((o) => (
+    <label class="vt-pill">
+      <input type="checkbox" data-view-toggle={o.key} checked={o.defaultVisible !== false} />
+      <span>{o.label}</span>
+    </label>
+  ))}
+</div>
+
+<style>
+  .view-toggle-bar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .vt-label { font-size: 14px; color: var(--muted); margin-right: 2px; }
+  .vt-pill {
+    display: inline-flex; align-items: center;
+    padding: 5px 12px; font-size: 13px;
+    border: 1px solid var(--rule);
+    cursor: pointer; user-select: none;
+    background: var(--bg); color: var(--muted);
+    transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+    min-height: 28px;
+  }
+  @media (pointer: coarse) {
+    .vt-pill { padding: 8px 14px; font-size: 14px; min-height: 36px; }
+  }
+  .vt-pill input {
+    appearance: none; -webkit-appearance: none;
+    width: 0; height: 0; margin: 0; position: absolute; opacity: 0;
+  }
+  .vt-pill:has(input:checked) {
+    background: var(--fg); color: var(--bg); border-color: var(--fg);
+  }
+  .vt-pill:has(input:focus-visible) {
+    outline: 2px solid var(--fg); outline-offset: 2px;
+  }
+</style>

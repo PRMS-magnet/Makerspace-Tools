@@ -1,0 +1,26 @@
+---
+interface Props {
+  name: string;
+  label: string;
+  checked?: boolean;
+}
+const { name, label, checked = false } = Astro.props;
+---
+<label class="cb">
+  <input name={name} type="checkbox" checked={checked} />
+  <span>{label}</span>
+</label>
+
+<style>
+  .cb {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; color: var(--muted); margin-bottom: 8px;
+    cursor: pointer; min-height: 28px;
+  }
+  .cb input { margin: 0; width: 16px; height: 16px; }
+
+  @media (pointer: coarse) {
+    .cb { min-height: 40px; font-size: 15px; }
+    .cb input { width: 20px; height: 20px; }
+  }
+</style>

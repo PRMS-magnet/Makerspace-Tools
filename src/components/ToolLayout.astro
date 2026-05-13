@@ -1,0 +1,42 @@
+---
+interface Props {
+  sidebarWidth?: string;
+  id?: string;
+}
+const { sidebarWidth = '280px', id } = Astro.props;
+---
+<div class="tool-layout" id={id} data-sidebar="open" style={`--tl-sidebar-w: ${sidebarWidth};`}>
+  <aside class="tool-sidebar"><slot name="sidebar" /></aside>
+  <section class="tool-main"><slot name="main" /></section>
+</div>
+
+<style>
+  .tool-layout {
+    display: grid;
+    grid-template-columns: var(--tl-sidebar-w, 280px) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+    transition: grid-template-columns 220ms ease;
+  }
+  .tool-layout[data-sidebar="closed"] {
+    grid-template-columns: 0px minmax(0, 1fr);
+    gap: 0;
+  }
+  .tool-layout[data-sidebar="closed"] .tool-sidebar {
+    visibility: hidden; pointer-events: none; opacity: 0;
+    transition: visibility 220ms, opacity 220ms;
+  }
+  .tool-sidebar { min-width: 0; transition: opacity 220ms; }
+  .tool-main { min-width: 0; }
+  @media (max-width: 820px) {
+    .tool-layout {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto auto;
+      gap: 14px;
+    }
+    .tool-layout[data-sidebar="closed"] .tool-sidebar { display: none; }
+    .tool-layout[data-sidebar="open"] .tool-sidebar {
+      visibility: visible; opacity: 1; pointer-events: auto;
+    }
+  }
+</style>

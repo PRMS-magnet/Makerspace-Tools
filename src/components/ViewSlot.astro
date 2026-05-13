@@ -1,0 +1,36 @@
+---
+interface Props {
+  name: string;
+  label: string;
+}
+const { name, label } = Astro.props;
+---
+<section class="view-slot" data-reorder-item data-reorder-key={name} data-view-slot={name}>
+  <h2 data-reorder-handle><span class="grip" aria-hidden="true">&#x2237;</span>{label}</h2>
+  <div class="view-slot-body"><slot /></div>
+</section>
+
+<style>
+  .view-slot {
+    margin-bottom: 18px;
+    position: relative;
+  }
+  .view-slot[hidden] { display: none; }
+  .view-slot h2 {
+    font-size: 14px; font-weight: 600; margin: 0 0 6px;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em;
+    display: inline-flex; align-items: center; gap: 6px;
+    cursor: grab; user-select: none; touch-action: none;
+  }
+  .view-slot h2:active { cursor: grabbing; }
+  .view-slot h2 .grip {
+    display: inline-block; color: var(--subtle); font-size: 12px;
+    letter-spacing: -1px;
+  }
+  .view-slot.reorder-dragging {
+    z-index: 100;
+    outline: 1px solid var(--fg);
+    opacity: 0.94;
+  }
+  .view-slot.reorder-dragging > h2 .grip { color: var(--fg); }
+</style>

@@ -1,0 +1,17 @@
+---
+interface Props {
+  class?: string;
+}
+const { class: extraClass = '' } = Astro.props;
+---
+<div class={`tool-action-bar ${extraClass}`}>
+  <slot />
+</div>
+
+<style>
+  .tool-action-bar {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    padding: 8px 12px; border: 1px solid var(--rule);
+    margin-bottom: 18px; font-size: 14px;
+  }
+</style>

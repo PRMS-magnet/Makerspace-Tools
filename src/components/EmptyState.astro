@@ -1,0 +1,17 @@
+---
+interface Props {
+  id?: string;
+}
+const { id } = Astro.props;
+---
+<div class="empty-state" id={id}>
+  <slot />
+</div>
+
+<style>
+  .empty-state {
+    padding: 60px 20px; text-align: center; font-style: italic;
+    color: var(--subtle); border: 1px dashed var(--rule);
+  }
+  .empty-state[hidden] { display: none; }
+</style>

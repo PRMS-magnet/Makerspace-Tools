@@ -1,0 +1,106 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1a1916;
+  --muted: #4a4742;
+  --subtle: #6a6760;
+  --link: #1a3a8a;
+  --rule: #d8d4c8;
+  --invalid: #b3331f;
+  --mt-transition: 220ms;
+  --mt-diag-fill-wood: #FAC775;
+  --mt-diag-stroke-wood: #854F0B;
+  --mt-diag-fill-struct: #CECBF6;
+  --mt-diag-stroke-struct: #3C3489;
+  --mt-diag-fill-wall: #D3D1C7;
+  --mt-diag-stroke-wall: #444441;
+  --mt-diag-fill-ridge: #B5D8A8;
+  --mt-diag-stroke-ridge: #406834;
+  --mt-diag-line: #5F5E5A;
+  --mt-diag-text: #2C2C2A;
+}
+
+[data-theme="dark"] {
+  --bg: #2a2a28;
+  --fg: #ececea;
+  --muted: #c4c2bd;
+  --subtle: #9b9994;
+  --link: #b3c9ff;
+  --rule: #3a3a37;
+  --invalid: #e57368;
+  --mt-diag-stroke-wood: #D89A55;
+  --mt-diag-stroke-struct: #9389DC;
+  --mt-diag-stroke-wall: #A8A69A;
+  --mt-diag-stroke-ridge: #6E9D5C;
+  --mt-diag-line: #C4C2BD;
+  --mt-diag-text: #ECECEA;
+}
+
+html, body { margin: 0; padding: 0; }
+
+html { color-scheme: light dark; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Times New Roman', Times, 'Liberation Serif', serif;
+  font-size: 16px;
+  line-height: 1.45;
+  transition: background-color var(--mt-transition) ease, color var(--mt-transition) ease;
+}
+
+a {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a:hover { text-decoration: none; }
+
+h1 { font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-weight: 600; }
+
+.wrap { max-width: 600px; margin: 0 auto; padding: 36px 24px 56px; }
+
+body.reorder-active { cursor: grabbing; user-select: none; }
+body.reorder-active * { cursor: grabbing !important; }
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  padding: 8px 12px;
+  background: var(--bg);
+  color: var(--link);
+  border: 1px solid var(--rule);
+  z-index: 1000;
+}
+.skip-link:focus {
+  left: 8px;
+  top: 8px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .wrap { padding: 24px 18px 40px; }
+  h1 { font-size: 24px; }
+}
+
+.svg-slot svg,
+.svg-slot svg * {
+  transition: stroke var(--mt-transition) ease, fill var(--mt-transition) ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
