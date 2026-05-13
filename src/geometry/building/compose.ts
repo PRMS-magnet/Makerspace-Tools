@@ -2,6 +2,7 @@ import type { Building, BuildingOutput, IntersectionDerived } from './types';
 import type { RoofCutlistOptions } from '../roof';
 import { roofPieces, composeRoofCutSvg } from '../roof';
 import { computeIntersection } from './intersect';
+import { buildPlanDiagram } from './diagram';
 import { layoutOnSheet } from '../core/layout';
 import type { Sheet, Piece, Piece3D } from '../core/types';
 
@@ -112,7 +113,7 @@ export function buildingCutlist(
   return {
     cutSvg,
     diagramSvg: unitOutputs[0].diagramSvg,
-    planDiagramSvg: '',
+    planDiagramSvg: buildPlanDiagram(b),
     derived: { perUnit, perIntersection },
     warnings: [...allWarnings, ...layout.warnings],
     pieces3D: all3D,
