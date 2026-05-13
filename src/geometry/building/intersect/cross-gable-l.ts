@@ -75,6 +75,7 @@ export function computeCrossGableL(
     guestPiecesToReplace: ['gable-end-near'],
     hostPiecesToAdd: [],
     host3DToAdd: [],
+    trimmerXPositions: [corner.x],
     derived: {
       valleyLines: [{ origin: valleyStart, direction: valleyDir }],
       wingRidgeEndpoint,

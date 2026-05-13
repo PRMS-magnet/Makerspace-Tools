@@ -101,15 +101,16 @@ export function buildingCutlist(
     allPieces.push(...r.newPieces, ...r.hostPiecesToAdd);
     all3D.push(...r.new3D, ...r.host3DToAdd);
 
-    if (hostOutput && r.derived.trimmerExtraCount > 0) {
+    if (hostOutput && r.trimmerXPositions) {
       const rafter = hostOutput.pieces.find((p) => p.label === 'rafter');
       if (rafter) {
-        for (let i = 0; i < r.derived.trimmerExtraCount; i++) {
+        for (const xPos of r.trimmerXPositions) {
           allPieces.push({
             polygon: rafter.polygon,
             op: rafter.op,
             label: 'trimmer-extra',
             rotations: rafter.rotations,
+            placement: { kind: 'cross-gable-trimmer', hostId: inter.hostId, xAlongHostRidge: xPos },
           });
         }
       }

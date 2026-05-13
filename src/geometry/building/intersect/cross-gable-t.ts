@@ -58,6 +58,7 @@ export function computeCrossGableT(
     guestPiecesToReplace: ['gable-end-near'],
     hostPiecesToAdd: [],
     host3DToAdd: [],
+    trimmerXPositions: [xCenter - S_wing / 2, xCenter + S_wing / 2],
     derived: {
       valleyLines,
       wingRidgeEndpoint,

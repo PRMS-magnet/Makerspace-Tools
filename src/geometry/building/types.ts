@@ -65,4 +65,5 @@ export interface ComputeIntersectionResult {
   hostPiecesToAdd: Piece[];
   host3DToAdd: Piece3D[];
   derived: IntersectionDerived;
+  trimmerXPositions?: number[];
 }
