@@ -1,10 +1,9 @@
-import type { Piece3D, Polygon } from '../core/types';
+import type { Piece, Piece3D, Polygon } from '../core/types';
 import type { RoofParams, RoofGeometry, RoofDerived } from './types';
 import { rafterInstalled, joistInstalled, collarTieInstalled } from './polygons';
 import { buildRidgePolygon, type MortiseSpec } from './ridge';
-
-const CROSS_SECTION_U: readonly [number, number, number] = [0, 1, 0];
-const CROSS_SECTION_V: readonly [number, number, number] = [0, 0, 1];
+import { buildContext, resolvePieces, type ResolveContext } from '../core/resolver';
+import { simpleGablePreset } from '../building/presets';
 
 interface Place3DParams {
   stockThicknessIn: number;
@@ -20,10 +19,7 @@ export function computeRoofPieces3D(
   counts: Omit<RoofDerived, 'geom'>,
   opts: Place3DParams,
 ): Piece3D[] {
-  const pieces: Piece3D[] = [];
   const t = opts.stockThicknessIn;
-  const houseLen = (counts.nPairs - 1) * p.rafterSpacingIn;
-  const xOffset = -houseLen / 2;
   const halfSpan = p.spanIn / 2;
 
   const centerY = (poly: Polygon): Polygon =>
@@ -40,63 +36,48 @@ export function computeRoofPieces3D(
   const collarDepthIn = p.rafterDepthIn * 0.6;
   const collarPoly = centerY(collarTieInstalled(g, p, collarDepthIn, 1 / 3));
 
+  const declared: Piece[] = [];
+
   for (let i = 0; i < counts.nPairs; i++) {
-    const xPos = xOffset + i * p.rafterSpacingIn;
-    const origin: readonly [number, number, number] = [xPos, 0, 0];
-
-    pieces.push({
+    declared.push({
       polygon: rafterLeftPoly,
-      origin,
-      uAxis: CROSS_SECTION_U,
-      vAxis: CROSS_SECTION_V,
-      extrudeDepthIn: t,
-      label: 'rafter',
       op: 'cut',
+      label: 'rafter',
+      placement: { kind: 'unit-rafter', unitId: 'main', indexAlongRidge: i, side: 'north' },
+      extrudeDepthIn: t,
     });
-
-    pieces.push({
+    declared.push({
       polygon: rafterRightPoly,
-      origin,
-      uAxis: CROSS_SECTION_U,
-      vAxis: CROSS_SECTION_V,
-      extrudeDepthIn: t,
+      op: 'cut',
       label: 'rafter',
-      op: 'cut',
+      placement: { kind: 'unit-rafter', unitId: 'main', indexAlongRidge: i, side: 'south' },
+      extrudeDepthIn: t,
     });
-
-    pieces.push({
+    declared.push({
       polygon: joistPoly,
-      origin,
-      uAxis: CROSS_SECTION_U,
-      vAxis: CROSS_SECTION_V,
-      extrudeDepthIn: t,
+      op: 'cut',
       label: 'joist',
-      op: 'cut',
-    });
-
-    pieces.push({
-      polygon: collarPoly,
-      origin,
-      uAxis: CROSS_SECTION_U,
-      vAxis: CROSS_SECTION_V,
+      placement: { kind: 'unit-joist', unitId: 'main', indexAlongRidge: i },
       extrudeDepthIn: t,
-      label: 'collar tie',
+    });
+    declared.push({
+      polygon: collarPoly,
       op: 'cut',
+      label: 'collar tie',
+      placement: { kind: 'unit-collar', unitId: 'main', indexAlongRidge: i },
+      extrudeDepthIn: t,
     });
   }
 
   const nominalTabHeight = g.plumbCutLength / 3;
   const ridgeHeightZ = g.plumbCutLength + 2 * opts.ridgeFaceMarginIn;
-  const yBotR = g.tanT * (g.R - p.wallThicknessIn);
-  const ridgeBottomZ = yBotR - opts.ridgeFaceMarginIn;
-  const ridgeLeftWorldX = xOffset - opts.ridgeEndMarginIn;
+  const houseLen = (counts.nPairs - 1) * p.rafterSpacingIn;
+  const xOffset = -houseLen / 2;
   const topMortiseCenterY = opts.ridgeFaceMarginIn + g.plumbCutLength - nominalTabHeight / 2;
   const bottomMortiseCenterY = opts.ridgeFaceMarginIn + nominalTabHeight / 2;
-  const ridgeAlongAxis: readonly [number, number, number] = [1, 0, 0];
-  const ridgeUpAxis: readonly [number, number, number] = [0, 0, 1];
 
   for (let segIdx = 0; segIdx < counts.nRidgePieces; segIdx++) {
-    const segStart = ridgeLeftWorldX + segIdx * counts.ridgePieceLengthIn;
+    const segStart = xOffset - opts.ridgeEndMarginIn + segIdx * counts.ridgePieceLengthIn;
     const segEnd = segStart + counts.ridgePieceLengthIn;
     const mortises: MortiseSpec[] = [];
     for (let i = 0; i < counts.nPairs; i++) {
@@ -112,16 +93,20 @@ export function computeRoofPieces3D(
       mortises,
     });
 
-    pieces.push({
+    declared.push({
       polygon: ridgePoly,
-      origin: [segStart, t / 2, ridgeBottomZ],
-      uAxis: ridgeAlongAxis,
-      vAxis: ridgeUpAxis,
-      extrudeDepthIn: t,
-      label: 'ridge',
       op: 'cut',
+      label: 'ridge',
+      placement: { kind: 'unit-ridge', unitId: 'main', segmentIndex: segIdx },
+      extrudeDepthIn: t,
     });
   }
 
-  return pieces;
+  const building = simpleGablePreset(p);
+  const ctx: ResolveContext = buildContext(building, {
+    stockThicknessIn: t,
+    ridgeEndMarginIn: opts.ridgeEndMarginIn,
+    ridgeFaceMarginIn: opts.ridgeFaceMarginIn,
+  });
+  return resolvePieces(declared, ctx);
 }
