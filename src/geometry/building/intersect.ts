@@ -5,10 +5,12 @@ import type {
   CrossGableTPlacement,
   CrossGableLPlacement,
   DormerGablePlacement,
+  DormerShedPlacement,
 } from './types';
 import { computeCrossGableT } from './intersect/cross-gable-t';
 import { computeCrossGableL } from './intersect/cross-gable-l';
 import { computeDormerGable } from './intersect/dormer-gable';
+import { computeDormerShed } from './intersect/dormer-shed';
 
 export interface ComputeIntersectionOptions {
   stockThicknessIn: number;
@@ -30,6 +32,6 @@ export function computeIntersection(
     case 'dormer-gable':
       return computeDormerGable(host, intersection.placement as DormerGablePlacement, intersection.id, opts);
     case 'dormer-shed':
-      throw new Error(`${intersection.kind} not yet implemented (Cycle B)`);
+      return computeDormerShed(host, intersection.placement as DormerShedPlacement, intersection.id, opts);
   }
 }

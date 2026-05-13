@@ -44,11 +44,17 @@ describe('computeIntersection dispatch', () => {
     expect(r.newPieces.length).toBeGreaterThan(0);
   });
 
-  it('throws for dormer-shed (Cycle B reserved)', () => {
+  it('dispatches dormer-shed to computeDormerShed', () => {
     const i: Intersection = {
-      id: 'i1', hostId: 'a', guestId: 'b', kind: 'dormer-shed',
-      placement: { hostCorner: 'NW' } as never,
+      id: 'd1', hostId: 'a', guestId: 'a', kind: 'dormer-shed',
+      placement: {
+        hostId: 'a', xAlongHostRidge: 12,
+        yBackFromHostRidge: 1, yFrontFromHostRidge: 4,
+        widthIn: 3, frontWallHeightIn: 1.5,
+        pitchRise: 2, pitchRun: 12, side: 'north',
+      },
     };
-    expect(() => computeIntersection(UNIT_A, UNIT_B, i, OPTS)).toThrow(/dormer/i);
+    const r = computeIntersection(UNIT_A, UNIT_B, i, OPTS);
+    expect(r.newPieces.length).toBeGreaterThan(0);
   });
 });
