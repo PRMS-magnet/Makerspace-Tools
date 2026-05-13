@@ -1,6 +1,5 @@
 import type { RoofUnit } from '../../roof/types';
 import type { CrossGableTPlacement, ComputeIntersectionResult } from '../types';
-import type { Piece, Piece3D } from '../../core/types';
 import type { Line3 } from '../../core/plane';
 import type { Vec3 } from '../../core/vec3';
 import {
@@ -52,22 +51,13 @@ export function computeCrossGableT(
   const jackCount = jackYCount * 2;
 
   const trimmerExtraCount = 2;
-  const hostPiecesToAdd: Piece[] = [];
-  const host3DToAdd: Piece3D[] = [];
-  for (let i = 0; i < trimmerExtraCount; i++) {
-    hostPiecesToAdd.push({
-      polygon: [],
-      op: 'cut',
-      label: `trimmer-extra-t-${i}`,
-    });
-  }
 
   return {
     newPieces: [],
     new3D: [],
     guestPiecesToReplace: ['gable-end-near'],
-    hostPiecesToAdd,
-    host3DToAdd,
+    hostPiecesToAdd: [],
+    host3DToAdd: [],
     derived: {
       valleyLines,
       wingRidgeEndpoint,

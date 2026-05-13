@@ -1,6 +1,5 @@
 import type { RoofUnit } from '../../roof/types';
 import type { CrossGableLPlacement, ComputeIntersectionResult } from '../types';
-import type { Piece, Piece3D } from '../../core/types';
 import type { Line3 } from '../../core/plane';
 import type { Vec3 } from '../../core/vec3';
 import {
@@ -70,19 +69,12 @@ export function computeCrossGableL(
     if (isJackRafterY({ yJack: y, Y_main, S_wing: W_wing, m_main, m_wing })) jackCount += 1;
   }
 
-  const hostPiecesToAdd: Piece[] = [{
-    polygon: [],
-    op: 'cut',
-    label: 'trimmer-extra-l-0',
-  }];
-  const host3DToAdd: Piece3D[] = [];
-
   return {
     newPieces: [],
     new3D: [],
     guestPiecesToReplace: ['gable-end-near'],
-    hostPiecesToAdd,
-    host3DToAdd,
+    hostPiecesToAdd: [],
+    host3DToAdd: [],
     derived: {
       valleyLines: [{ origin: valleyStart, direction: valleyDir }],
       wingRidgeEndpoint,

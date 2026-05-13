@@ -41,7 +41,6 @@ describe('computeCrossGableT', () => {
 
   it('emits two trimmer extras (one per cheek wall x)', () => {
     expect(result.derived.trimmerExtraCount).toBe(2);
-    expect(result.hostPiecesToAdd.length).toBeGreaterThanOrEqual(2);
   });
 
   it('replaces the guest near-end gable wall', () => {
