@@ -83,6 +83,13 @@ const previewViews = [
           <NumberField name="pieceSpacingIn" label="Piece spacing (in)" value={0.06} step={0.01} min={0} />
           <CheckboxField name="smartPacking" label="Smart packing (slower, denser)" checked={true} />
         </FormGroup>
+        <FormGroup label="Dormers">
+          <div id="dormer-list" class="dormer-list"></div>
+          <div class="dormer-actions">
+            <Button id="add-gable-dormer" variant="subtle">+ Gable dormer</Button>
+            <Button id="add-shed-dormer" variant="subtle">+ Shed dormer</Button>
+          </div>
+        </FormGroup>
         <Button id="reset-btn" variant="subtle" block={true}>Reset to preset</Button>
       </form>
 
@@ -199,13 +206,55 @@ const previewViews = [
   @media (pointer: coarse) {
     .tool-action-bar select { min-height: 38px; padding: 6px 8px; font-size: 15px; }
   }
+
+  .dormer-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  .dormer-list:empty { display: none; }
+  .dormer-card { border: 1px solid var(--rule); padding: 8px; }
+  .dormer-card-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px; font-size: 14px;
+  }
+  .dormer-card-header button {
+    font: inherit; background: none; border: none; padding: 0;
+    color: var(--subtle); cursor: pointer; font-size: 12px;
+  }
+  .dormer-card-header button:hover { color: var(--invalid); }
+  .dormer-card-body { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .dormer-card-body label {
+    display: flex; flex-direction: column; gap: 2px;
+    font-size: 12px; color: var(--muted);
+  }
+  .dormer-card-body input,
+  .dormer-card-body select {
+    font: inherit; font-size: 13px; padding: 3px 5px;
+    background: var(--bg); color: var(--fg);
+    border: 1px solid var(--rule); width: 100%; box-sizing: border-box;
+  }
+  .dormer-actions { display: flex; gap: 6px; }
+
+  .sheet-pagination {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 4px 0 8px;
+    font-size: 13px; color: var(--muted);
+  }
+  .sheet-pagination[hidden] { display: none; }
+  .sheet-pagination button {
+    font: inherit; background: var(--bg); color: var(--fg);
+    border: 1px solid var(--rule);
+    padding: 2px 10px; min-width: 28px; cursor: pointer;
+  }
+  .sheet-pagination button:hover:not(:disabled) {
+    border-color: var(--link); color: var(--link);
+  }
+  .sheet-pagination button:disabled { color: var(--subtle); cursor: not-allowed; }
 </style>
 
 <script>
   import { roofPieces, composeRoofCutSvg } from '../geometry/roof';
   import { packInWorker, bboxLayoutOnSheet } from '../geometry/core/packing';
   import type { RoofParams } from '../geometry/roof/types';
-  import { buildingCutlist, lPlanPreset, tPlanPreset, BUILTIN_BUILDING_PRESETS } from '../geometry/building';
+  import { buildingCutlist, lPlanPreset, tPlanPreset, simpleGablePreset, BUILTIN_BUILDING_PRESETS } from '../geometry/building';
+  import type { Building, Intersection } from '../geometry/building';
   import { buildDebugSvg, buildDebugTripaneSvg, bboxOfPieces3D, piecesFromUnit } from '../geometry/building/debug';
   import { getActiveMachine } from '../state/presets/machine';
   import { getActiveMaterial } from '../state/presets/material';
@@ -247,6 +296,22 @@ const previewViews = [
     if (stored === 'simple' || stored === 'l-plan' || stored === 't-plan') currentShape = stored;
   } catch {}
   shapeSelect.value = currentShape;
+
+  type DormerSpec = {
+    id: string;
+    kind: 'gable' | 'shed';
+    hostId: string;
+    xAlongHostRidge: number;
+    yFromHostRidge: number;
+    widthIn: number;
+    heightIn: number;
+    side: 'north' | 'south';
+  };
+  let dormers: DormerSpec[] = [];
+  let nextDormerNum = 1;
+  function genDormerId(): string {
+    return `d${nextDormerNum++}`;
+  }
 
   function readParams(): RoofParams {
     const fd = new FormData(form);
@@ -425,22 +490,146 @@ const previewViews = [
     return !!slot && !slot.hidden;
   }
 
-  function buildingFromShape(p: RoofParams) {
+  function buildingFromShape(p: RoofParams): Building | null {
     const mainUnit = { ...p };
+    let building: Building | null = null;
     if (currentShape === 'l-plan') {
       const wingSpan = Math.max(2, p.houseLengthIn * 0.5);
       const wingLength = Math.max(2, p.spanIn * 1.2);
       const wingFull = { ...mainUnit, spanIn: wingSpan, houseLengthIn: wingLength };
-      return lPlanPreset(mainUnit, wingFull, 'NW');
-    }
-    if (currentShape === 't-plan') {
+      building = lPlanPreset(mainUnit, wingFull, 'NW');
+    } else if (currentShape === 't-plan') {
       const wingSpan = Math.max(2, p.houseLengthIn * 0.4);
       const wingLength = Math.max(2, p.spanIn * 1.1);
       const wingFull = { ...mainUnit, spanIn: wingSpan, houseLengthIn: wingLength };
       const xAlong = p.houseLengthIn / 2;
-      return tPlanPreset(mainUnit, wingFull, xAlong);
+      building = tPlanPreset(mainUnit, wingFull, xAlong);
+    } else if (dormers.length > 0) {
+      building = simpleGablePreset(p);
     }
-    return null;
+    if (building && dormers.length > 0) {
+      for (const d of dormers) {
+        const validHost = building.units.some((u) => u.id === d.hostId);
+        const hostId = validHost ? d.hostId : 'main';
+        const intersection: Intersection = d.kind === 'gable'
+          ? {
+              id: d.id, hostId, guestId: 'unused', kind: 'dormer-gable',
+              placement: {
+                hostId,
+                xAlongHostRidge: d.xAlongHostRidge,
+                yFromHostRidge: d.yFromHostRidge,
+                widthIn: d.widthIn,
+                ridgeHeightIn: d.heightIn,
+                pitchRise: p.pitchRise,
+                pitchRun: p.pitchRun,
+                side: d.side,
+              },
+            }
+          : {
+              id: d.id, hostId, guestId: 'unused', kind: 'dormer-shed',
+              placement: {
+                hostId,
+                xAlongHostRidge: d.xAlongHostRidge,
+                yBackFromHostRidge: Math.max(0.5, d.yFromHostRidge - d.widthIn / 2),
+                yFrontFromHostRidge: d.yFromHostRidge + d.widthIn / 2,
+                widthIn: d.widthIn,
+                frontWallHeightIn: d.heightIn,
+                pitchRise: 2,
+                pitchRun: 12,
+                side: d.side,
+              },
+            };
+        building.intersections.push(intersection);
+      }
+    }
+    return building;
+  }
+
+  function buildHostOptions(selected: string): string {
+    const hosts: string[] = ['main'];
+    if (currentShape === 'l-plan' || currentShape === 't-plan') hosts.push('wing');
+    return hosts.map((h) => `<option value="${h}"${h === selected ? ' selected' : ''}>${h}</option>`).join('');
+  }
+
+  function escapeAttr(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+
+  function renderDormerList() {
+    const list = document.getElementById('dormer-list');
+    if (!list) return;
+    list.replaceChildren();
+    for (const d of dormers) {
+      const card = document.createElement('div');
+      card.className = 'dormer-card';
+      const label = d.kind === 'gable' ? 'Gable dormer' : 'Shed dormer';
+      const id = escapeAttr(d.id);
+      card.innerHTML = `
+        <div class="dormer-card-header">
+          <strong>${label}</strong>
+          <button type="button" data-remove="${id}" aria-label="Remove dormer">remove</button>
+        </div>
+        <div class="dormer-card-body">
+          <label>Host
+            <select data-field="hostId" data-id="${id}">${buildHostOptions(d.hostId)}</select>
+          </label>
+          <label>Side
+            <select data-field="side" data-id="${id}">
+              <option value="north"${d.side === 'north' ? ' selected' : ''}>north</option>
+              <option value="south"${d.side === 'south' ? ' selected' : ''}>south</option>
+            </select>
+          </label>
+          <label>X along ridge
+            <input type="number" data-field="xAlongHostRidge" data-id="${id}" value="${d.xAlongHostRidge}" step="0.25" />
+          </label>
+          <label>Y from ridge
+            <input type="number" data-field="yFromHostRidge" data-id="${id}" value="${d.yFromHostRidge}" step="0.25" />
+          </label>
+          <label>Width (in)
+            <input type="number" data-field="widthIn" data-id="${id}" value="${d.widthIn}" step="0.25" min="0.25" />
+          </label>
+          <label>${d.kind === 'gable' ? 'Ridge height' : 'Front wall height'} (in)
+            <input type="number" data-field="heightIn" data-id="${id}" value="${d.heightIn}" step="0.25" min="0.1" />
+          </label>
+        </div>
+      `;
+      list.appendChild(card);
+    }
+    attachDormerHandlers();
+  }
+
+  function attachDormerHandlers() {
+    document.querySelectorAll<HTMLButtonElement>('#dormer-list [data-remove]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.remove;
+        if (!id) return;
+        dormers = dormers.filter((x) => x.id !== id);
+        renderDormerList();
+        recompute();
+      });
+    });
+    document.querySelectorAll<HTMLInputElement | HTMLSelectElement>('#dormer-list [data-field]').forEach((el) => {
+      el.addEventListener('change', () => {
+        const id = el.dataset.id;
+        const field = el.dataset.field;
+        if (!id || !field) return;
+        const d = dormers.find((x) => x.id === id);
+        if (!d) return;
+        if (field === 'side') {
+          d.side = el.value === 'south' ? 'south' : 'north';
+        } else if (field === 'hostId') {
+          d.hostId = el.value;
+        } else {
+          const v = Number(el.value);
+          if (!Number.isFinite(v)) return;
+          if (field === 'xAlongHostRidge') d.xAlongHostRidge = v;
+          else if (field === 'yFromHostRidge') d.yFromHostRidge = v;
+          else if (field === 'widthIn') d.widthIn = v;
+          else if (field === 'heightIn') d.heightIn = v;
+        }
+        recompute();
+      });
+    });
   }
 
   function recompute() {
@@ -691,6 +880,40 @@ const previewViews = [
   shapeSelect.addEventListener('change', () => {
     currentShape = shapeSelect.value as Shape;
     try { localStorage.setItem(UI_KEY_SHAPE, currentShape); } catch {}
+    if (currentShape === 'simple') {
+      for (const d of dormers) if (d.hostId !== 'main') d.hostId = 'main';
+    }
+    renderDormerList();
+    recompute();
+  });
+
+  document.getElementById('add-gable-dormer')!.addEventListener('click', () => {
+    dormers.push({
+      id: genDormerId(),
+      kind: 'gable',
+      hostId: 'main',
+      xAlongHostRidge: 5,
+      yFromHostRidge: 2,
+      widthIn: 3,
+      heightIn: 2.5,
+      side: 'north',
+    });
+    renderDormerList();
+    recompute();
+  });
+
+  document.getElementById('add-shed-dormer')!.addEventListener('click', () => {
+    dormers.push({
+      id: genDormerId(),
+      kind: 'shed',
+      hostId: 'main',
+      xAlongHostRidge: 5,
+      yFromHostRidge: 2,
+      widthIn: 3,
+      heightIn: 1.5,
+      side: 'north',
+    });
+    renderDormerList();
     recompute();
   });
 
@@ -798,6 +1021,7 @@ const previewViews = [
   refreshActivePresetDisplay();
   refreshToolPresetSelect();
   populateForm(getActiveToolPreset<RoofParams>('roof').params);
+  renderDormerList();
   recompute();
 
   type DumpDebugOptions = { plane?: 'xy' | 'xz' | 'yz'; tripane?: boolean; download?: boolean };
