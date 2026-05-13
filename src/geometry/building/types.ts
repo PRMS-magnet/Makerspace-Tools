@@ -17,9 +17,42 @@ export interface CrossGableLPlacement {
   hostCorner: 'NW' | 'NE' | 'SW' | 'SE';
 }
 
+export interface WindowOpening {
+  widthIn: number;
+  heightIn: number;
+  sillIn: number;
+}
+
+export interface DormerGablePlacement {
+  hostId: string;
+  xAlongHostRidge: number;
+  yFromHostRidge: number;
+  widthIn: number;
+  ridgeHeightIn: number;
+  pitchRise: number;
+  pitchRun: number;
+  side: 'north' | 'south';
+  window?: WindowOpening;
+}
+
+export interface DormerShedPlacement {
+  hostId: string;
+  xAlongHostRidge: number;
+  yBackFromHostRidge: number;
+  yFrontFromHostRidge: number;
+  widthIn: number;
+  frontWallHeightIn: number;
+  pitchRise: number;
+  pitchRun: number;
+  side: 'north' | 'south';
+  window?: WindowOpening;
+}
+
 export type IntersectionPlacement =
   | CrossGableTPlacement
-  | CrossGableLPlacement;
+  | CrossGableLPlacement
+  | DormerGablePlacement
+  | DormerShedPlacement;
 
 export interface Intersection {
   id: string;

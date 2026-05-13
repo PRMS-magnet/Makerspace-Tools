@@ -41,8 +41,11 @@ export function buildingCutlist(
   if (b.units.length === 0) {
     throw new Error('Building must have at least one unit');
   }
-  if (b.intersections.length > 1) {
-    throw new Error('Cycle A supports at most one intersection per Building');
+  const wingIntersections = b.intersections.filter(
+    (i) => i.kind === 'cross-gable-T' || i.kind === 'cross-gable-L',
+  );
+  if (wingIntersections.length > 1) {
+    throw new Error('At most one cross-gable (wing) intersection per Building');
   }
 
   const stockThicknessIn = opts.stockThicknessIn ?? 0.125;
