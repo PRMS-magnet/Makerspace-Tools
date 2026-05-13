@@ -27,7 +27,9 @@ export interface DormerGableGeom {
   m_host: number;
   m_d: number;
   L_cheek_horizontal: number;
+  L_cheek_slope: number;
   L_valley_horizontal: number;
+  L_valley_slope: number;
   L_dormer_ridge: number;
   fits: boolean;
 }
@@ -45,7 +47,11 @@ export function computeDormerGableGeom(host: RoofUnit, p: DormerGablePlacement):
   const d_back = H - Z_dormer_ridge / m_host;
   const d_valley_at_cheek = H - Z_cheek / m_host;
   const L_cheek_horizontal = Math.max(0, d_front - d_valley_at_cheek);
-  const L_valley_horizontal = Math.hypot(W / 2, Math.max(0, d_valley_at_cheek - d_back));
+  const slope_sec = Math.hypot(1, m_host);
+  const L_cheek_slope = L_cheek_horizontal * slope_sec;
+  const dValleyAlong = Math.max(0, d_valley_at_cheek - d_back);
+  const L_valley_horizontal = Math.hypot(W / 2, dValleyAlong);
+  const L_valley_slope = Math.hypot(W / 2, dValleyAlong * slope_sec);
   const L_dormer_ridge = Math.max(0, d_front - d_back);
   const Z_main_ridge = H * m_host;
   const fits = Z_dormer_ridge < Z_main_ridge
@@ -70,7 +76,9 @@ export function computeDormerGableGeom(host: RoofUnit, p: DormerGablePlacement):
     m_host,
     m_d,
     L_cheek_horizontal,
+    L_cheek_slope,
     L_valley_horizontal,
+    L_valley_slope,
     L_dormer_ridge,
     fits,
   };
@@ -124,7 +132,7 @@ function dormerCommonRafterPolygon(g: DormerGableGeom, W: number): Polygon {
 
 function dormerValleyJackPolygon(g: DormerGableGeom, W: number, d_jack: number): Polygon {
   const span = g.d_valley_at_cheek - g.d_back;
-  const t = span <= 0 ? 0 : (g.d_valley_at_cheek - d_jack) / span;
+  const t = span <= 0 ? 0 : (d_jack - g.d_back) / span;
   const run_jack = Math.max(0, (W / 2) * t);
   const rise_jack = run_jack * g.m_d;
   return [
@@ -173,7 +181,7 @@ export function computeDormerGable(
 
   for (const side of ['east', 'west'] as const) {
     newPieces.push({
-      polygon: rectanglePolygon(g.L_cheek_horizontal, stock),
+      polygon: rectanglePolygon(g.L_cheek_slope, stock),
       op: 'cut',
       label: 'rafter-plate',
       placement: { kind: 'dormer-rafter-plate', dormerId, side },
@@ -183,7 +191,7 @@ export function computeDormerGable(
 
   for (const side of ['east', 'west'] as const) {
     newPieces.push({
-      polygon: rectanglePolygon(g.L_valley_horizontal, stock),
+      polygon: rectanglePolygon(g.L_valley_slope, stock),
       op: 'cut',
       label: 'cali-valley',
       placement: { kind: 'dormer-cali-valley', dormerId, side },
@@ -194,20 +202,20 @@ export function computeDormerGable(
   const spacing = host.rafterSpacingIn;
   const eps = 1e-9;
 
-  let jackIndex = 0;
-  for (let d = g.d_back; d <= g.d_valley_at_cheek + eps; d += spacing) {
-    if (d < g.d_back - eps) continue;
-    if (d > g.d_valley_at_cheek + eps) break;
+  let jackCount = 0;
+  for (let step = 1; ; step++) {
+    const d = g.d_back + step * spacing;
+    if (d > g.d_valley_at_cheek - eps) break;
     for (const side of ['east', 'west'] as const) {
       newPieces.push({
         polygon: dormerValleyJackPolygon(g, W, d),
         op: 'cut',
         label: 'valley-jack',
-        placement: { kind: 'dormer-valley-jack', dormerId, indexAlongRidge: jackIndex, side },
+        placement: { kind: 'dormer-valley-jack', dormerId, indexAlongRidge: step, side },
         extrudeDepthIn: stock,
       });
     }
-    jackIndex++;
+    jackCount++;
   }
 
   let commonIndex = 0;
@@ -240,7 +248,7 @@ export function computeDormerGable(
       valleyLines,
       wingRidgeEndpoint,
       wingRidgeLengthIn: g.L_dormer_ridge,
-      jackCount: jackIndex * 2,
+      jackCount: jackCount * 2,
       trimmerExtraCount: 2,
     },
   };

@@ -1115,6 +1115,12 @@ const previewViews = [
   renderDormerList();
   recompute();
 
+  (window as unknown as { __dbg: () => unknown }).__dbg = () => ({
+    pieces3D: lastValidOutput?.pieces3D ?? [],
+    dormers,
+    currentShape,
+  });
+
   type DumpDebugOptions = { plane?: 'xy' | 'xz' | 'yz'; tripane?: boolean; download?: boolean };
   (window as unknown as { dumpDebug: (opts?: DumpDebugOptions) => string }).dumpDebug = (opts: DumpDebugOptions = {}) => {
     if (!lastValidOutput) { console.warn('[dumpDebug] no valid output yet'); return ''; }

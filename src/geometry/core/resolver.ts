@@ -329,7 +329,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const s = f.geom.sideSign;
       const d_pos = f.geom.d_back + p.indexAlongRidge * f.hostFrame.unit.rafterSpacingIn;
       const span = f.geom.d_valley_at_cheek - f.geom.d_back;
-      const t = span <= 0 ? 0 : (f.geom.d_valley_at_cheek - d_pos) / span;
+      const t = span <= 0 ? 0 : (d_pos - f.geom.d_back) / span;
       const x_valley = f.placement.xAlongHostRidge + xSign * (f.placement.widthIn / 2) * t;
       const z_valley = f.geom.Z_dormer_ridge - Math.abs(x_valley - f.placement.xAlongHostRidge) * f.geom.m_d;
       const localOrigin: Vec3 = [x_valley, s * d_pos, z_valley];
@@ -344,13 +344,14 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       if (f.kind !== 'gable') throw new Error(`resolvePiece: dormer-rafter-plate requires gable dormer`);
       const xSign = p.side === 'east' ? +1 : -1;
       const s = f.geom.sideSign;
+      const sec = Math.hypot(1, f.geom.m_host);
       const localOrigin: Vec3 = [
         f.placement.xAlongHostRidge + xSign * f.placement.widthIn / 2,
         f.geom.y_valley_at_cheek,
         f.geom.Z_cheek,
       ];
-      const localU: Vec3 = [0, s, 0];
-      const localV: Vec3 = [0, 0, 1];
+      const localU: Vec3 = [0, s / sec, -f.geom.m_host / sec];
+      const localV: Vec3 = [-xSign, 0, 0];
       const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
       return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };
     }
@@ -366,9 +367,11 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       ];
       const dx = -xSign * f.placement.widthIn / 2;
       const dy = f.geom.y_back - f.geom.y_valley_at_cheek;
-      const len = Math.hypot(dx, dy);
-      const localU: Vec3 = len === 0 ? [1, 0, 0] : [dx / len, dy / len, 0];
-      const localV: Vec3 = [0, 0, 1];
+      const dz = f.geom.Z_dormer_ridge - f.geom.Z_cheek;
+      const len = Math.hypot(dx, dy, dz);
+      const localU: Vec3 = len === 0 ? [1, 0, 0] : [dx / len, dy / len, dz / len];
+      const sec = Math.hypot(1, f.geom.m_host);
+      const localV: Vec3 = [0, -f.geom.sideSign * f.geom.m_host / sec, 1 / sec];
       const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
       return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };
     }
