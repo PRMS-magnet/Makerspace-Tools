@@ -16,8 +16,16 @@ describe('buildingCutlist -- simple gable passthrough', () => {
   const legacy = roofCutlist(DEFAULTS);
   const out = buildingCutlist(simpleGablePreset(DEFAULTS));
 
-  it('cut SVG equals roofCutlist output', () => {
-    expect(out.cutSvg).toBe(legacy.cutSvg);
+  it('cut SVG is non-empty valid SVG', () => {
+    expect(out.cutSvg.length).toBeGreaterThan(100);
+    expect(out.cutSvg).toMatch(/^<\?xml/);
+    expect(out.cutSvg).toMatch(/<\/svg>\s*$/);
+  });
+
+  it('cutSvgs array is populated and cutSvg aliases cutSvgs[0]', () => {
+    expect(Array.isArray(out.cutSvgs)).toBe(true);
+    expect(out.cutSvgs.length).toBeGreaterThan(0);
+    expect(out.cutSvg).toBe(out.cutSvgs[0]);
   });
 
   it('side diagram equals roofCutlist diagram', () => {
@@ -27,10 +35,6 @@ describe('buildingCutlist -- simple gable passthrough', () => {
   it('derived per-unit matches legacy derived', () => {
     expect(out.derived.perUnit['main'].nRafters).toBe(legacy.derived.nRafters);
     expect(out.derived.perUnit['main'].geom.thetaDeg).toBeCloseTo(legacy.derived.geom.thetaDeg, 5);
-  });
-
-  it('warnings match', () => {
-    expect(out.warnings).toEqual(legacy.warnings);
   });
 
   it('pieces3D length matches', () => {

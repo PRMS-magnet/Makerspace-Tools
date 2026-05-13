@@ -1,9 +1,9 @@
 import type { Building, BuildingOutput, IntersectionDerived } from './types';
 import type { RoofCutlistOptions } from '../roof';
-import { roofPieces, composeRoofCutSvg } from '../roof';
+import { roofPieces } from '../roof';
 import { computeIntersection } from './intersect';
 import { buildPlanDiagram } from './diagram';
-import { layoutOnSheet } from '../core/layout';
+import { packIntoSheets } from '../core/multi-sheet';
 import { buildContext, resolvePiece } from '../core/resolver';
 import type { Sheet, Piece, Piece3D, PiecePlacement } from '../core/types';
 import { validateBuilding } from './validate';
@@ -126,8 +126,9 @@ export function buildingCutlist(
     marginIn: b.marginIn,
     pieceSpacingIn: b.pieceSpacingIn,
   };
-  const layout = layoutOnSheet(allPieces, sheet);
-  const cutSvg = composeRoofCutSvg(layout.placed, layout.totalHeightIn, b.sheetWidthIn);
+  const multi = packIntoSheets(allPieces, sheet);
+  const cutSvgs = multi.sheets.map((s) => s.cutSvg);
+  const cutSvg = cutSvgs[0] ?? '';
 
   const perUnit: BuildingOutput['derived']['perUnit'] = {};
   for (const u of unitOutputs) {
@@ -136,10 +137,11 @@ export function buildingCutlist(
 
   return {
     cutSvg,
+    cutSvgs,
     diagramSvg: unitOutputs[0].diagramSvg,
     planDiagramSvg: buildPlanDiagram(b),
     derived: { perUnit, perIntersection },
-    warnings: [...allWarnings, ...layout.warnings, ...validateBuilding(b).map((v) => v.message)],
+    warnings: [...allWarnings, ...multi.warnings, ...validateBuilding(b).map((v) => v.message)],
     pieces3D: all3D,
     pieces: allPieces,
     sheet,

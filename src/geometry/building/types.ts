@@ -82,6 +82,7 @@ export interface BuildingDerived {
 
 export interface BuildingOutput {
   cutSvg: string;
+  cutSvgs: string[];
   diagramSvg: string;
   planDiagramSvg: string;
   derived: BuildingDerived;
