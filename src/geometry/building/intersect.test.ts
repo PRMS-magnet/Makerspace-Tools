@@ -31,9 +31,22 @@ describe('computeIntersection dispatch', () => {
     expect(r.derived.valleyLines.length).toBe(1);
   });
 
-  it('throws for dormer kinds (Cycle B)', () => {
+  it('dispatches dormer-gable to computeDormerGable', () => {
     const i: Intersection = {
-      id: 'i1', hostId: 'a', guestId: 'b', kind: 'dormer-gable',
+      id: 'd1', hostId: 'a', guestId: 'a', kind: 'dormer-gable',
+      placement: {
+        hostId: 'a', xAlongHostRidge: 12, yFromHostRidge: 2,
+        widthIn: 3, ridgeHeightIn: 2.5,
+        pitchRise: 8, pitchRun: 12, side: 'north',
+      },
+    };
+    const r = computeIntersection(UNIT_A, UNIT_B, i, OPTS);
+    expect(r.newPieces.length).toBeGreaterThan(0);
+  });
+
+  it('throws for dormer-shed (Cycle B reserved)', () => {
+    const i: Intersection = {
+      id: 'i1', hostId: 'a', guestId: 'b', kind: 'dormer-shed',
       placement: { hostCorner: 'NW' } as never,
     };
     expect(() => computeIntersection(UNIT_A, UNIT_B, i, OPTS)).toThrow(/dormer/i);

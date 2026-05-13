@@ -1,11 +1,12 @@
 import type { Piece, Piece3D } from './types';
-import type { Building } from '../building/types';
+import type { Building, DormerGablePlacement } from '../building/types';
 import type { RoofUnit } from '../roof/types';
 import { computeRoofGeometry } from '../roof/compute';
 import { computeRoofCounts } from '../roof/cutlist';
 import type { RoofCutlistOptions } from '../roof';
 import type { Vec3 } from './vec3';
 import { add3 } from './vec3';
+import { computeDormerGableGeom, type DormerGableGeom } from '../building/intersect/dormer-gable';
 
 export interface UnitFrame {
   unit: RoofUnit;
@@ -24,9 +25,17 @@ export interface UnitFrame {
   riseAtCenterline: number;
 }
 
+export interface DormerFrame {
+  hostId: string;
+  hostFrame: UnitFrame;
+  placement: DormerGablePlacement;
+  geom: DormerGableGeom;
+}
+
 export interface ResolveContext {
   building: Building;
   unitFrames: Map<string, UnitFrame>;
+  dormerFrames: Map<string, DormerFrame>;
 }
 
 function unitPlacementFor(b: Building, unitIndex: number): { translation: Vec3; rotationZRadians: number } {
@@ -132,7 +141,21 @@ export function buildContext(b: Building, opts: RoofCutlistOptions): ResolveCont
     });
   });
 
-  return { building: b, unitFrames };
+  const dormerFrames = new Map<string, DormerFrame>();
+  for (const inter of b.intersections) {
+    if (inter.kind !== 'dormer-gable') continue;
+    const placement = inter.placement as DormerGablePlacement;
+    const hostFrame = unitFrames.get(placement.hostId);
+    if (!hostFrame) continue;
+    dormerFrames.set(inter.id, {
+      hostId: placement.hostId,
+      hostFrame,
+      placement,
+      geom: computeDormerGableGeom(hostFrame.unit, placement),
+    });
+  }
+
+  return { building: b, unitFrames, dormerFrames };
 }
 
 const RAFTER_U: Vec3 = [0, 1, 0];
@@ -176,16 +199,111 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
         extrudeDepthIn: piece.extrudeDepthIn ?? f.stockThicknessIn,
       };
     }
+    case 'dormer-cheek-wall': {
+      const f = ctx.dormerFrames.get(p.dormerId);
+      if (!f) throw new Error(`resolvePiece: no dormer frame for ${p.dormerId}`);
+      const xSign = p.side === 'east' ? +1 : -1;
+      const localOrigin: Vec3 = [
+        f.placement.xAlongHostRidge + xSign * f.placement.widthIn / 2,
+        f.geom.y_front,
+        f.geom.z_main_front,
+      ];
+      const localU: Vec3 = [0, -1, 0];
+      const localV: Vec3 = [0, 0, 1];
+      const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
+      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };
+    }
+    case 'dormer-front-wall': {
+      const f = ctx.dormerFrames.get(p.dormerId);
+      if (!f) throw new Error(`resolvePiece: no dormer frame for ${p.dormerId}`);
+      const localOrigin: Vec3 = [
+        f.placement.xAlongHostRidge - f.placement.widthIn / 2,
+        f.geom.y_front,
+        f.geom.z_main_front,
+      ];
+      const localU: Vec3 = [1, 0, 0];
+      const localV: Vec3 = [0, 0, 1];
+      const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
+      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };
+    }
+    case 'dormer-ridge': {
+      const f = ctx.dormerFrames.get(p.dormerId);
+      if (!f) throw new Error(`resolvePiece: no dormer frame for ${p.dormerId}`);
+      const stock = f.hostFrame.stockThicknessIn;
+      const localOrigin: Vec3 = [
+        f.placement.xAlongHostRidge - stock / 2,
+        f.geom.Y_back,
+        f.geom.Z_dormer_ridge - stock,
+      ];
+      const localU: Vec3 = [0, 1, 0];
+      const localV: Vec3 = [0, 0, 1];
+      const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
+      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? stock };
+    }
+    case 'dormer-rafter': {
+      const f = ctx.dormerFrames.get(p.dormerId);
+      if (!f) throw new Error(`resolvePiece: no dormer frame for ${p.dormerId}`);
+      const xSign = p.side === 'east' ? +1 : -1;
+      const y_pos = f.geom.Y_valley_at_cheek + p.indexAlongRidge * f.hostFrame.unit.rafterSpacingIn;
+      const localOrigin: Vec3 = [
+        f.placement.xAlongHostRidge + xSign * f.placement.widthIn / 2,
+        y_pos,
+        f.geom.Z_cheek,
+      ];
+      const localU: Vec3 = [-xSign, 0, 0];
+      const localV: Vec3 = [0, 0, 1];
+      const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
+      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };
+    }
+    case 'dormer-valley-jack': {
+      const f = ctx.dormerFrames.get(p.dormerId);
+      if (!f) throw new Error(`resolvePiece: no dormer frame for ${p.dormerId}`);
+      const xSign = p.side === 'east' ? +1 : -1;
+      const y_pos = f.geom.Y_back + p.indexAlongRidge * f.hostFrame.unit.rafterSpacingIn;
+      const span = f.geom.Y_valley_at_cheek - f.geom.Y_back;
+      const t = span === 0 ? 0 : (f.geom.Y_valley_at_cheek - y_pos) / span;
+      const x_valley = f.placement.xAlongHostRidge + xSign * (f.placement.widthIn / 2) * t;
+      const z_valley = f.geom.Z_dormer_ridge - Math.abs(x_valley - f.placement.xAlongHostRidge) * f.geom.m_d;
+      const localOrigin: Vec3 = [x_valley, y_pos, z_valley];
+      const localU: Vec3 = [-xSign, 0, 0];
+      const localV: Vec3 = [0, 0, 1];
+      const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
+      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };
+    }
+    case 'dormer-rafter-plate': {
+      const f = ctx.dormerFrames.get(p.dormerId);
+      if (!f) throw new Error(`resolvePiece: no dormer frame for ${p.dormerId}`);
+      const xSign = p.side === 'east' ? +1 : -1;
+      const localOrigin: Vec3 = [
+        f.placement.xAlongHostRidge + xSign * f.placement.widthIn / 2,
+        f.geom.Y_valley_at_cheek,
+        f.geom.Z_cheek,
+      ];
+      const localU: Vec3 = [0, 1, 0];
+      const localV: Vec3 = [0, 0, 1];
+      const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
+      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };
+    }
+    case 'dormer-cali-valley': {
+      const f = ctx.dormerFrames.get(p.dormerId);
+      if (!f) throw new Error(`resolvePiece: no dormer frame for ${p.dormerId}`);
+      const xSign = p.side === 'east' ? +1 : -1;
+      const localOrigin: Vec3 = [
+        f.placement.xAlongHostRidge + xSign * f.placement.widthIn / 2,
+        f.geom.Y_valley_at_cheek,
+        f.geom.Z_cheek,
+      ];
+      const dx = -xSign * f.placement.widthIn / 2;
+      const dy = f.geom.Y_back - f.geom.Y_valley_at_cheek;
+      const len = Math.hypot(dx, dy);
+      const localU: Vec3 = len === 0 ? [1, 0, 0] : [dx / len, dy / len, 0];
+      const localV: Vec3 = [0, 0, 1];
+      const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
+      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };
+    }
     case 'unit-top-plate':
     case 'cross-gable-trimmer':
     case 'unit-purlin':
-    case 'dormer-cheek-wall':
-    case 'dormer-front-wall':
-    case 'dormer-ridge':
-    case 'dormer-rafter':
-    case 'dormer-valley-jack':
-    case 'dormer-rafter-plate':
-    case 'dormer-cali-valley':
     case 'shed-dormer-cripple':
     case 'shed-dormer-header':
       throw new Error(`resolvePiece: kind '${p.kind}' is not yet implemented (reserved for later cycle)`);
