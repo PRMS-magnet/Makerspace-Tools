@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeDormerGable } from './dormer-gable';
+import { computeDormerGable, computeDormerGableGeom } from './dormer-gable';
 import type { RoofUnit } from '../../roof/types';
 import type { DormerGablePlacement } from '../types';
 
@@ -58,5 +58,19 @@ describe('computeDormerGable', () => {
   it('valley jack count is non-zero for this placement', () => {
     const jacks = result.newPieces.filter((p) => p.placement?.kind === 'dormer-valley-jack');
     expect(jacks.length).toBeGreaterThan(0);
+  });
+});
+
+describe('computeDormerGableGeom', () => {
+  const g = computeDormerGableGeom(HOST, PLACEMENT);
+
+  it('matches the math-doc worked example', () => {
+    expect(g.y_front).toBeCloseTo(4, 6);
+    expect(g.z_main_front).toBeCloseTo(4 / 3, 6);
+    expect(g.Z_dormer_ridge).toBeCloseTo(4 / 3 + 2.5, 6);
+    expect(g.Z_cheek).toBeCloseTo(4 / 3 + 2.5 - 1, 6);
+    expect(g.Y_back).toBeCloseTo(0.25, 6);
+    expect(g.Y_valley_at_cheek).toBeCloseTo(1.75, 6);
+    expect(g.L_dormer_ridge).toBeCloseTo(3.75, 6);
   });
 });
