@@ -115,6 +115,11 @@ const previewViews = [
             <div id="plan-preview" class="svg-slot"></div>
           </ViewSlot>
           <ViewSlot name="cutlist" label="Cut list layout">
+            <div id="sheet-pagination" class="sheet-pagination" hidden>
+              <button type="button" id="prev-sheet" aria-label="Previous sheet">&lsaquo;</button>
+              <span id="sheet-label">Sheet 1 of 1</span>
+              <button type="button" id="next-sheet" aria-label="Next sheet">&rsaquo;</button>
+            </div>
             <div id="cutlist-preview" class="svg-slot"></div>
           </ViewSlot>
           <ViewSlot name="derived" label="Derived dimensions">
@@ -465,6 +470,34 @@ const previewViews = [
   let lastPackedPieces: import('../geometry/roof').RoofPiecesResult | null = null;
   let realtimePackAbort: AbortController | null = null;
   let lastTightHeightIn: number | null = null;
+  let lastCutSvgs: string[] = [];
+  let currentSheetIndex = 0;
+
+  function updateCutSlot() {
+    if (!cutListVisible()) return;
+    const pagination = document.getElementById('sheet-pagination') as HTMLElement | null;
+    const label = document.getElementById('sheet-label') as HTMLElement | null;
+    const prevBtn = document.getElementById('prev-sheet') as HTMLButtonElement | null;
+    const nextBtn = document.getElementById('next-sheet') as HTMLButtonElement | null;
+    if (lastCutSvgs.length === 0) {
+      cutSlot.innerHTML = '';
+      if (pagination) pagination.hidden = true;
+      return;
+    }
+    if (currentSheetIndex >= lastCutSvgs.length) currentSheetIndex = lastCutSvgs.length - 1;
+    if (currentSheetIndex < 0) currentSheetIndex = 0;
+    cutSlot.innerHTML = lastCutSvgs[currentSheetIndex];
+    if (pagination && label) {
+      if (lastCutSvgs.length > 1) {
+        pagination.hidden = false;
+        label.textContent = `Sheet ${currentSheetIndex + 1} of ${lastCutSvgs.length}`;
+        if (prevBtn) prevBtn.disabled = currentSheetIndex === 0;
+        if (nextBtn) nextBtn.disabled = currentSheetIndex === lastCutSvgs.length - 1;
+      } else {
+        pagination.hidden = true;
+      }
+    }
+  }
 
   function paramsEqual(a: RoofParams | null, b: RoofParams | null): boolean {
     if (a === b) return true;
@@ -650,11 +683,13 @@ const previewViews = [
     const bldg = buildingFromShape(p);
     let buildingPlanSvg = '';
     let buildingWarnings: string[] = [];
+    let buildingCutSvgs: string[] | null = null;
     if (bldg) {
       try {
         const bout = buildingCutlist(bldg, { ...readOpts(), colorMode: 'css-vars' });
         buildingPlanSvg = bout.planDiagramSvg;
         buildingWarnings = bout.warnings;
+        buildingCutSvgs = bout.cutSvgs && bout.cutSvgs.length > 0 ? bout.cutSvgs : [bout.cutSvg];
         piecesResult = {
           ...piecesResult,
           pieces: bout.pieces,
@@ -683,7 +718,8 @@ const previewViews = [
     lastValidOutput = out;
     diagramSlot.innerHTML = out.diagramSvg;
     planSlot.innerHTML = buildingPlanSvg;
-    if (cutListVisible()) cutSlot.innerHTML = out.cutSvg;
+    lastCutSvgs = buildingCutSvgs ?? [bboxCutSvg];
+    updateCutSlot();
 
     derivedEl.innerHTML = `
       <dt>Pitch</dt><dd>${out.derived.geom.thetaDeg.toFixed(2)}&deg; (${p.pitchRise}/${p.pitchRun})</dd>
@@ -698,6 +734,7 @@ const previewViews = [
     void updateViewer3D();
 
     if (!cutListVisible()) return;
+    if (buildingCutSvgs) return;
 
     if (realtimePackAbort) realtimePackAbort.abort();
     realtimePackAbort = new AbortController();
@@ -712,7 +749,9 @@ const previewViews = [
       if (!pendingPartial || seq !== recomputeSeq || !cutListVisible()) return;
       const h = Math.max(pendingPartial.totalHeightIn, stableMinHeightIn);
       const svg = composeRoofCutSvg(pendingPartial.placed, h, p.sheetWidthIn);
-      cutSlot.innerHTML = svg;
+      lastCutSvgs = [svg];
+      currentSheetIndex = 0;
+      updateCutSlot();
       pendingPartial = null;
     };
 
@@ -735,7 +774,9 @@ const previewViews = [
         if (lastValidOutput) {
           lastValidOutput = { ...lastValidOutput, cutSvg: tighter, warnings: [...piecesResult.warnings, ...res.warnings] };
         }
-        if (cutListVisible()) cutSlot.innerHTML = tighter;
+        lastCutSvgs = [tighter];
+        currentSheetIndex = 0;
+        updateCutSlot();
         lastTightHeightIn = res.totalHeightIn;
       } else if (res.warnings.length) {
         renderWarnings(piecesResult.warnings, res.warnings);
@@ -862,10 +903,23 @@ const previewViews = [
       applyViewVisibility();
       if (input.dataset.viewToggle === 'view3d' && input.checked) void updateViewer3D();
       if (input.dataset.viewToggle === 'cutlist') {
-        if (input.checked) recompute();
+        if (input.checked) { recompute(); updateCutSlot(); }
         else if (realtimePackAbort) realtimePackAbort.abort();
       }
     });
+  });
+
+  document.getElementById('prev-sheet')!.addEventListener('click', () => {
+    if (currentSheetIndex > 0) {
+      currentSheetIndex--;
+      updateCutSlot();
+    }
+  });
+  document.getElementById('next-sheet')!.addEventListener('click', () => {
+    if (currentSheetIndex < lastCutSvgs.length - 1) {
+      currentSheetIndex++;
+      updateCutSlot();
+    }
   });
 
   toggleSidebarBtn.addEventListener('click', () => {
@@ -950,6 +1004,14 @@ const previewViews = [
     const date = new Date().toISOString().slice(0, 10);
     const p = readParams();
     if (validateParams(p)) return;
+
+    if (lastCutSvgs.length > 1) {
+      for (let i = 0; i < lastCutSvgs.length; i++) {
+        downloadSvg(lastCutSvgs[i], `roof-cutlist-${presetName}-${date}-sheet-${i + 1}.svg`);
+      }
+      return;
+    }
+
     const piecesResult = paramsEqual(p, lastPackedParams) && lastPackedPieces
       ? lastPackedPieces
       : roofPieces(p, readOpts());
