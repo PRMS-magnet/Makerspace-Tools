@@ -206,6 +206,7 @@ const previewViews = [
   import { packInWorker, bboxLayoutOnSheet } from '../geometry/core/packing';
   import type { RoofParams } from '../geometry/roof/types';
   import { buildingCutlist, lPlanPreset, tPlanPreset, BUILTIN_BUILDING_PRESETS } from '../geometry/building';
+  import { buildDebugSvg, buildDebugTripaneSvg, bboxOfPieces3D, piecesFromUnit } from '../geometry/building/debug';
   import { getActiveMachine } from '../state/presets/machine';
   import { getActiveMaterial } from '../state/presets/material';
   import { listToolPresets, saveToolPreset, getActiveToolPreset, setActiveToolPresetId } from '../state/presets/tool';
@@ -798,6 +799,29 @@ const previewViews = [
   refreshToolPresetSelect();
   populateForm(getActiveToolPreset<RoofParams>('roof').params);
   recompute();
+
+  type DumpDebugOptions = { plane?: 'xy' | 'xz' | 'yz'; tripane?: boolean; download?: boolean };
+  (window as unknown as { dumpDebug: (opts?: DumpDebugOptions) => string }).dumpDebug = (opts: DumpDebugOptions = {}) => {
+    if (!lastValidOutput) { console.warn('[dumpDebug] no valid output yet'); return ''; }
+    const pieces = lastValidOutput.pieces3D;
+    const svg = opts.tripane ? buildDebugTripaneSvg(pieces) : buildDebugSvg(pieces, { plane: opts.plane ?? 'xy' });
+    const units = Array.from(new Set(pieces.map((p) => p.unitId ?? 'unknown')));
+    for (const id of units) {
+      const bb = bboxOfPieces3D(piecesFromUnit(pieces, id));
+      console.log(`[dumpDebug] ${id}: x=[${bb.minX.toFixed(2)}, ${bb.maxX.toFixed(2)}] y=[${bb.minY.toFixed(2)}, ${bb.maxY.toFixed(2)}] z=[${bb.minZ.toFixed(2)}, ${bb.maxZ.toFixed(2)}]`);
+    }
+    if (opts.download) {
+      const blob = new Blob([svg], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `roof-debug-${Date.now()}.svg`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } else {
+      const win = window.open('', '_blank');
+      if (win) { win.document.write(svg); win.document.close(); }
+    }
+    return svg;
+  };
 
   let themeSeq = 0;
   const themeObserver = new MutationObserver(async () => {

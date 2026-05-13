@@ -100,4 +100,5 @@ export interface Piece3D {
   extrudeDepthIn: number;
   label?: string;
   op?: LaserOp;
+  unitId?: string;
 }

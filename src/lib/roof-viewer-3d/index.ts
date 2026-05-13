@@ -7,6 +7,7 @@ import { addSceneHelpers, viewerBackground, type SceneHelpers } from './scene';
 import { createCameraSystem, FOV_ORTHO, FOV_PERSP, type CameraSystem, type Projection } from './camera';
 import { mountViewCube, type ViewCubeHandle } from './view-cube';
 import { ColorTween, type ColorTrack } from './tween';
+import { createDebugLayer, isDebugEnabled, type DebugLayer } from './debug';
 
 export interface RoofViewerHandle {
   setPieces: (pieces: Piece3D[]) => void;
@@ -42,6 +43,9 @@ export function mountRoofViewer(container: HTMLElement, initialTokens?: DiagramT
   const materials: MaterialSet = buildMaterialSet(tokens);
   const geometryCache: GeometryCache = createGeometryCache();
   const pieceObjects: THREE.Object3D[] = [];
+
+  const debugLayer: DebugLayer | null = isDebugEnabled() ? createDebugLayer() : null;
+  if (debugLayer) scene.add(debugLayer.group);
   let firstFitDone = false;
   let lastBbox = new THREE.Box3();
   let tween = new ColorTween(220);
@@ -112,6 +116,12 @@ export function mountRoofViewer(container: HTMLElement, initialTokens?: DiagramT
 
   let needsRender = true;
   let lastPiecesRef: Piece3D[] | null = null;
+  // True between an OrbitControls 'start' and the end of its post-release
+  // damping window. Used to (a) force a render every frame while the user
+  // is interacting and (b) defer mesh swaps until the drag finishes so
+  // setPieces() can't flash the model mid-orbit.
+  let interacting = false;
+  let pendingPieces: Piece3D[] | null = null;
 
   function requestRender(): void { needsRender = true; }
 
@@ -122,6 +132,10 @@ export function mountRoofViewer(container: HTMLElement, initialTokens?: DiagramT
 
   function setPieces(pieces: Piece3D[]): void {
     if (pieces === lastPiecesRef) return;
+    // Mid-drag mesh rebuilds make the model momentarily disappear and the
+    // camera state feels unreliable. Stash the new pieces and apply them
+    // when the drag ends (see the 'end' handler below).
+    if (interacting) { pendingPieces = pieces; return; }
     lastPiecesRef = pieces;
     clearPieces();
     const live = new Set<Polygon | PolygonWithHoles>();
@@ -132,6 +146,7 @@ export function mountRoofViewer(container: HTMLElement, initialTokens?: DiagramT
       live.add(p.polygon);
     }
     evictGeometryCache(geometryCache, live);
+    if (debugLayer) debugLayer.update(pieces);
     const bbox = new THREE.Box3();
     for (const obj of pieceObjects) bbox.expandByObject(obj);
     sceneHelpers.layoutForBbox(bbox);
@@ -157,7 +172,28 @@ export function mountRoofViewer(container: HTMLElement, initialTokens?: DiagramT
     needsRender = true;
   }
 
+  // OrbitControls events: 'start' fires on pointerdown, 'change' on each
+  // camera state mutation (drag + damping frames), 'end' on pointerup.
+  // We listen to all three so the render loop can't miss either edge of
+  // a drag — and we hold the interacting flag from 'start' to the end of
+  // the damping settle so setPieces() defers and frames keep rendering.
+  const onInteractionStart = (): void => {
+    interacting = true;
+    needsRender = true;
+  };
+  const onInteractionEnd = (): void => {
+    interacting = false;
+    needsRender = true;
+    // Apply any pieces that landed during the drag.
+    if (pendingPieces) {
+      const next = pendingPieces;
+      pendingPieces = null;
+      setPieces(next);
+    }
+  };
+  cameraSystem.controls.addEventListener('start', onInteractionStart);
   cameraSystem.controls.addEventListener('change', requestRender);
+  cameraSystem.controls.addEventListener('end', onInteractionEnd);
 
   let raf = 0;
   function tick(): void {
@@ -189,6 +225,11 @@ export function mountRoofViewer(container: HTMLElement, initialTokens?: DiagramT
       tween.update(performance.now());
       needsRender = true;
     }
+    // While the user is dragging, render every frame regardless of whether
+    // a 'change' event fired this tick — pointer-state-to-camera-state
+    // propagation can lag a frame and miss renders otherwise. This is the
+    // single biggest source of perceived "drag unreliability".
+    if (interacting) needsRender = true;
 
     if (needsRender) {
       renderer.render(scene, cameraSystem.camera);
@@ -277,8 +318,11 @@ export function mountRoofViewer(container: HTMLElement, initialTokens?: DiagramT
       ro.disconnect();
       renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
       renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored);
+      cameraSystem.controls.removeEventListener('start', onInteractionStart);
       cameraSystem.controls.removeEventListener('change', requestRender);
+      cameraSystem.controls.removeEventListener('end', onInteractionEnd);
       clearPieces();
+      if (debugLayer) debugLayer.dispose();
       disposeGeometryCache(geometryCache);
       disposeMaterialSet(materials);
       viewCube.destroy();

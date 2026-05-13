@@ -47,7 +47,10 @@ export function buildingCutlist(
   const unitOutputs = b.units.map((u, i) => {
     const r = roofPieces(unitToRoofParams(b, i), opts);
     const placement = unitPlacement(b, i);
-    const transformed3D = r.pieces3D.map((p) => applyPlacementToPiece3D(p, placement));
+    const transformed3D = r.pieces3D.map((p) => {
+      const placed = applyPlacementToPiece3D(p, placement);
+      return { ...placed, unitId: u.id };
+    });
     return {
       unit: u,
       pieces: r.pieces,
