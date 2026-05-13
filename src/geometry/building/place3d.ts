@@ -18,15 +18,15 @@ export function unitPlacement(b: Building, unitIndex: number): UnitPlacement {
   if (inter.kind === 'cross-gable-T') {
     const xCenter = (inter.placement as { xAlongHostRidge: number }).xAlongHostRidge;
     return {
-      translation: [xCenter, host.spanIn, 0],
+      translation: [xCenter + guest.spanIn / 2, host.spanIn, 0],
       rotationZRadians: Math.PI / 2,
     };
   }
   if (inter.kind === 'cross-gable-L') {
     const corner = (inter.placement as { hostCorner: 'NW' | 'NE' | 'SW' | 'SE' }).hostCorner;
     switch (corner) {
-      case 'NW': return { translation: [0, host.spanIn, 0], rotationZRadians: Math.PI / 2 };
-      case 'NE': return { translation: [host.houseLengthIn - guest.spanIn, host.spanIn, 0], rotationZRadians: Math.PI / 2 };
+      case 'NW': return { translation: [guest.spanIn, host.spanIn, 0], rotationZRadians: Math.PI / 2 };
+      case 'NE': return { translation: [host.houseLengthIn, host.spanIn, 0], rotationZRadians: Math.PI / 2 };
       case 'SW': return { translation: [0, 0, 0], rotationZRadians: -Math.PI / 2 };
       case 'SE': return { translation: [host.houseLengthIn - guest.spanIn, 0, 0], rotationZRadians: -Math.PI / 2 };
     }

@@ -19,18 +19,18 @@ describe('unitPlacement', () => {
     expect(p.rotationZRadians).toBeCloseTo(0, 9);
   });
 
-  it('T-plan wing translates to (xCenter, Y_main, 0) and rotates 90 deg', () => {
+  it('T-plan wing translates by (xCenter + W_wing/2, Y_main, 0) so post-rotation footprint centers on xCenter', () => {
     const b = tPlanPreset(MAIN, WING, 12);
     const p = unitPlacement(b, 1);
-    expect(p.translation[0]).toBeCloseTo(12, 5);
+    expect(p.translation[0]).toBeCloseTo(12 + WING.spanIn / 2, 5);
     expect(p.translation[1]).toBeCloseTo(MAIN.spanIn, 5);
     expect(p.rotationZRadians).toBeCloseTo(Math.PI / 2, 5);
   });
 
-  it('L-plan NW wing translates to (0, Y_main, 0)', () => {
+  it('L-plan NW wing translates by (W_wing, Y_main, 0) so post-rotation footprint sits in x in [0, W_wing]', () => {
     const b = lPlanPreset(MAIN, WING, 'NW');
     const p = unitPlacement(b, 1);
-    expect(p.translation[0]).toBeCloseTo(0, 5);
+    expect(p.translation[0]).toBeCloseTo(WING.spanIn, 5);
     expect(p.translation[1]).toBeCloseTo(MAIN.spanIn, 5);
   });
 });
