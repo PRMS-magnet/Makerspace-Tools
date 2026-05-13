@@ -2,6 +2,7 @@ import type { Piece, Piece3D, Polygon } from '../core/types';
 import type { RoofParams, RoofGeometry, RoofDerived } from './types';
 import { rafterInstalled, joistInstalled, collarTieInstalled } from './polygons';
 import { buildRidgePolygon, type MortiseSpec } from './ridge';
+import { shouldEmitPurlin, purlinPolygon } from './purlin';
 import { buildContext, resolvePieces, type ResolveContext } from '../core/resolver';
 import { simpleGablePreset } from '../building/presets';
 
@@ -98,6 +99,24 @@ export function computeRoofPieces3D(
       op: 'cut',
       label: 'ridge',
       placement: { kind: 'unit-ridge', unitId: 'main', segmentIndex: segIdx },
+      extrudeDepthIn: t,
+    });
+  }
+
+  if (shouldEmitPurlin(g)) {
+    const purlinPoly = purlinPolygon(p, t, { nPairs: counts.nPairs });
+    declared.push({
+      polygon: purlinPoly,
+      op: 'cut',
+      label: 'purlin',
+      placement: { kind: 'unit-purlin', unitId: 'main', side: 'south' },
+      extrudeDepthIn: t,
+    });
+    declared.push({
+      polygon: purlinPoly,
+      op: 'cut',
+      label: 'purlin',
+      placement: { kind: 'unit-purlin', unitId: 'main', side: 'north' },
       extrudeDepthIn: t,
     });
   }

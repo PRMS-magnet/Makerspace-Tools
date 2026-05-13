@@ -397,9 +397,27 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f.hostFrame);
       return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: piece.extrudeDepthIn ?? f.hostFrame.stockThicknessIn };
     }
+    case 'unit-purlin': {
+      const f = ctx.unitFrames.get(p.unitId);
+      if (!f) throw new Error(`resolvePiece: no unit frame for ${p.unitId}`);
+      const H = f.unit.spanIn / 2;
+      const m = f.unit.pitchRise / f.unit.pitchRun;
+      const zPurlin = (H * m) / 2;
+      const yLocal = p.side === 'south' ? H / 2 : -H / 2;
+      const localOrigin: Vec3 = [f.xOffset, yLocal, zPurlin];
+      const localU: Vec3 = [1, 0, 0];
+      const localV: Vec3 = [0, 0, 1];
+      const { origin, uAxis, vAxis } = applyUnitFrame(localOrigin, localU, localV, f);
+      return {
+        ...piece,
+        origin,
+        uAxis,
+        vAxis,
+        extrudeDepthIn: piece.extrudeDepthIn ?? f.stockThicknessIn,
+      };
+    }
     case 'unit-top-plate':
     case 'cross-gable-trimmer':
-    case 'unit-purlin':
       throw new Error(`resolvePiece: kind '${p.kind}' is not yet implemented (reserved for later cycle)`);
   }
 }

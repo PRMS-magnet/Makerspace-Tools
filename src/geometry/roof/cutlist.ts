@@ -3,6 +3,7 @@ import { installedToFlat } from '../core/polygon';
 import type { RoofParams, RoofGeometry, RoofDerived } from './types';
 import { rafterFlat, joistInstalled, collarTieInstalled } from './polygons';
 import { buildRidgePolygon, type MortiseSpec } from './ridge';
+import { shouldEmitPurlin, purlinPolygon } from './purlin';
 
 function rect(w: number, h: number): Polygon {
   return [[0, 0], [w, 0], [w, h], [0, h]];
@@ -154,6 +155,12 @@ export function buildCutListPieces(
   const topPlatePoly = rect(p.spanIn, p.topPlateHeightIn);
   for (let i = 0; i < counts.nPairs; i++) {
     pieces.push({ polygon: topPlatePoly, op: 'cut', label: 'top plate' });
+  }
+
+  if (shouldEmitPurlin(g)) {
+    const purlinPoly = purlinPolygon(p, opts.stockThicknessIn, { nPairs: counts.nPairs });
+    pieces.push({ polygon: purlinPoly, op: 'cut', label: 'purlin' });
+    pieces.push({ polygon: purlinPoly, op: 'cut', label: 'purlin' });
   }
 
   return { pieces, warnings };
