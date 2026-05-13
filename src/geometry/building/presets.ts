@@ -71,3 +71,56 @@ export function tPlanPreset(
     ...sheetFrom(main),
   };
 }
+
+export interface BuildingPreset {
+  id: string;
+  name: string;
+  shape: 'simple' | 'l-plan' | 't-plan';
+  building: Building;
+}
+
+const COMMON: Omit<UnitWithSheet, 'spanIn' | 'pitchRise' | 'pitchRun' | 'houseLengthIn'> = {
+  rafterDepthIn: 0.5,
+  wallThicknessIn: 0.25,
+  overhangRunIn: 0.5,
+  rafterSpacingIn: 0.875,
+  topPlateHeightIn: 0.25,
+  nPairsOverride: null,
+  sheetWidthIn: 12,
+  maxPieceLengthIn: 12,
+  marginIn: 0.12,
+};
+
+export const BUILTIN_BUILDING_PRESETS: readonly BuildingPreset[] = [
+  {
+    id: 'l-plan-cottage',
+    name: '1:18 L-plan cottage',
+    shape: 'l-plan',
+    building: lPlanPreset(
+      { ...COMMON, spanIn: 12, pitchRise: 8, pitchRun: 12, houseLengthIn: 18 },
+      { ...COMMON, spanIn: 12, pitchRise: 8, pitchRun: 12, houseLengthIn: 12 },
+      'NW',
+    ),
+  },
+  {
+    id: 't-plan-farmhouse',
+    name: '1:18 T-plan farmhouse',
+    shape: 't-plan',
+    building: tPlanPreset(
+      { ...COMMON, spanIn: 12, pitchRise: 6, pitchRun: 12, houseLengthIn: 24 },
+      { ...COMMON, spanIn: 8, pitchRise: 6, pitchRun: 12, houseLengthIn: 10 },
+      12,
+    ),
+  },
+  {
+    id: 'cross-gable-cape',
+    name: '1:18 cross-gable Cape',
+    shape: 't-plan',
+    building: tPlanPreset(
+      { ...COMMON, spanIn: 14, pitchRise: 10, pitchRun: 12, houseLengthIn: 20 },
+      { ...COMMON, spanIn: 8, pitchRise: 8, pitchRun: 12, houseLengthIn: 8 },
+      10,
+    ),
+  },
+];
+
