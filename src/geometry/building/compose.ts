@@ -120,5 +120,7 @@ export function buildingCutlist(
     derived: { perUnit, perIntersection },
     warnings: [...allWarnings, ...layout.warnings],
     pieces3D: all3D,
+    pieces: allPieces,
+    sheet,
   };
 }

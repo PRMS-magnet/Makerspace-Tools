@@ -1,5 +1,5 @@
 import type { RoofUnit, SheetParams, RoofDerived } from '../roof/types';
-import type { Piece, Piece3D } from '../core/types';
+import type { Piece, Piece3D, Sheet } from '../core/types';
 import type { Line3 } from '../core/plane';
 import type { Vec3 } from '../core/vec3';
 
@@ -54,6 +54,8 @@ export interface BuildingOutput {
   derived: BuildingDerived;
   warnings: string[];
   pieces3D: Piece3D[];
+  pieces: Piece[];
+  sheet: Sheet;
 }
 
 export interface ComputeIntersectionResult {

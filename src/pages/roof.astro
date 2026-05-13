@@ -455,35 +455,40 @@ const previewViews = [
       return;
     }
 
-    const piecesResult = roofPieces(p, { ...readOpts(), colorMode: 'css-vars' });
-    lastPackedPieces = piecesResult;
-    lastPackedParams = p;
+    let piecesResult = roofPieces(p, { ...readOpts(), colorMode: 'css-vars' });
 
     const bldg = buildingFromShape(p);
     let buildingPlanSvg = '';
-    let buildingCutSvg: string | null = null;
-    let buildingPieces3D: import('../geometry/core/types').Piece3D[] | null = null;
     let buildingWarnings: string[] = [];
     if (bldg) {
       try {
         const bout = buildingCutlist(bldg, { ...readOpts(), colorMode: 'css-vars' });
         buildingPlanSvg = bout.planDiagramSvg;
-        buildingCutSvg = bout.cutSvg;
-        buildingPieces3D = bout.pieces3D;
         buildingWarnings = bout.warnings;
+        piecesResult = {
+          ...piecesResult,
+          pieces: bout.pieces,
+          sheet: bout.sheet,
+          diagramSvg: bout.diagramSvg,
+          pieces3D: bout.pieces3D,
+          warnings: bout.warnings,
+        };
       } catch (e) {
         buildingWarnings = [(e as Error).message ?? 'building compose failed'];
       }
     }
 
+    lastPackedPieces = piecesResult;
+    lastPackedParams = p;
+
     const bbox = bboxLayoutOnSheet(piecesResult.pieces, piecesResult.sheet);
     const bboxCutSvg = composeRoofCutSvg(bbox.placed, bbox.totalHeightIn, p.sheetWidthIn);
     const out: RoofOutput = {
-      cutSvg: buildingCutSvg ?? bboxCutSvg,
+      cutSvg: bboxCutSvg,
       diagramSvg: piecesResult.diagramSvg,
       derived: piecesResult.derived,
       warnings: [...piecesResult.warnings, ...bbox.warnings, ...buildingWarnings],
-      pieces3D: buildingPieces3D ?? piecesResult.pieces3D,
+      pieces3D: piecesResult.pieces3D,
     };
     lastValidOutput = out;
     diagramSlot.innerHTML = out.diagramSvg;
@@ -502,7 +507,6 @@ const previewViews = [
     scheduleFitLayout();
     void updateViewer3D();
 
-    if (bldg) return;
     if (!cutListVisible()) return;
 
     if (realtimePackAbort) realtimePackAbort.abort();
