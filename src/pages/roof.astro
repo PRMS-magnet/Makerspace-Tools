@@ -427,20 +427,16 @@ const previewViews = [
   function buildingFromShape(p: RoofParams) {
     const mainUnit = { ...p };
     if (currentShape === 'l-plan') {
-      const tpl = BUILTIN_BUILDING_PRESETS.find((bp) => bp.id === 'l-plan-cottage')!;
-      const wing = tpl.building.units[1];
-      const maxWingSpan = Math.max(2, p.houseLengthIn - 0.5);
-      const wingSpan = Math.min(wing.spanIn, maxWingSpan);
-      const wingFull = { ...mainUnit, spanIn: wingSpan, houseLengthIn: wing.houseLengthIn };
+      const wingSpan = Math.max(2, p.houseLengthIn * 0.5);
+      const wingLength = Math.max(2, p.spanIn * 1.2);
+      const wingFull = { ...mainUnit, spanIn: wingSpan, houseLengthIn: wingLength };
       return lPlanPreset(mainUnit, wingFull, 'NW');
     }
     if (currentShape === 't-plan') {
-      const tpl = BUILTIN_BUILDING_PRESETS.find((bp) => bp.id === 't-plan-farmhouse')!;
-      const wing = tpl.building.units[1];
-      const maxWingSpan = Math.max(2, p.houseLengthIn - 1);
-      const wingSpan = Math.min(wing.spanIn, maxWingSpan);
-      const wingFull = { ...mainUnit, spanIn: wingSpan, houseLengthIn: wing.houseLengthIn };
-      const xAlong = Math.max(wingSpan / 2 + 0.5, Math.min(p.houseLengthIn - wingSpan / 2 - 0.5, p.houseLengthIn / 2));
+      const wingSpan = Math.max(2, p.houseLengthIn * 0.4);
+      const wingLength = Math.max(2, p.spanIn * 1.1);
+      const wingFull = { ...mainUnit, spanIn: wingSpan, houseLengthIn: wingLength };
+      const xAlong = p.houseLengthIn / 2;
       return tPlanPreset(mainUnit, wingFull, xAlong);
     }
     return null;
