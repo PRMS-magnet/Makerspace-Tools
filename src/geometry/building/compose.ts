@@ -6,6 +6,7 @@ import { buildPlanDiagram } from './diagram';
 import { layoutOnSheet } from '../core/layout';
 import { buildContext, resolvePiece } from '../core/resolver';
 import type { Sheet, Piece, Piece3D, PiecePlacement } from '../core/types';
+import { validateBuilding } from './validate';
 
 function unitToRoofParams(b: Building, unitIndex: number) {
   const u = b.units[unitIndex];
@@ -138,7 +139,7 @@ export function buildingCutlist(
     diagramSvg: unitOutputs[0].diagramSvg,
     planDiagramSvg: buildPlanDiagram(b),
     derived: { perUnit, perIntersection },
-    warnings: [...allWarnings, ...layout.warnings],
+    warnings: [...allWarnings, ...layout.warnings, ...validateBuilding(b).map((v) => v.message)],
     pieces3D: all3D,
     pieces: allPieces,
     sheet,
