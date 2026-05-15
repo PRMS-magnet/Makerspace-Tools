@@ -15,4 +15,10 @@ export const TOOLS: Tool[] = [
       'Generates a flat laser-cut layout and a side-view diagram from one parameter set.',
     status: 'ready',
   },
+  {
+    slug: 'wall',
+    name: 'Stud wall cutlist',
+    blurb: 'Configurable stud + plate cut list with optional horizontal blocking.',
+    status: 'planned',
+  },
   ];

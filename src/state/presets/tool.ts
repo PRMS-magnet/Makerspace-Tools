@@ -1,5 +1,6 @@
 import { load, save } from './storage';
 import type { RoofParams } from '../../geometry/roof/types';
+import type { WallParams } from '../../geometry/wall/types';
 
 export interface ToolPreset<P> {
   id: string;
@@ -29,6 +30,29 @@ export const BUILTIN_ROOF_PRESETS: ToolPreset<RoofParams>[] = [
   { id: 'roof-cabin-12-12', toolSlug: 'roof', name: 'Cabin loft 12/12', params: { ...ROOF_DEFAULT, pitchRise: 12 }, createdAt: '2026-05-12T00:00:00Z', builtin: true },
 ];
 
+const WALL_DEFAULT: WallParams = {
+  widthIn: 8.0,
+  heightIn: 5.33,
+  studSpacingIn: 0.889,
+  studWidthIn: 0.083,
+  studDepthIn: 0.194,
+  nStudsOverride: null,
+  topPlateHeightIn: 0.083,
+  bottomPlateHeightIn: 0.083,
+  doubleTopPlate: false,
+  blocking: { mode: 'none' },
+  blockingThicknessIn: 0.083,
+  sheetWidthIn: 12.0,
+  maxPieceLengthIn: 12.0,
+  marginIn: 0.12,
+  pieceSpacingIn: 0.06,
+};
+
+export const BUILTIN_WALL_PRESETS: ToolPreset<WallParams>[] = [
+  { id: 'wall-1-18-simple', toolSlug: 'wall', name: '1:18 simple wall', params: WALL_DEFAULT, createdAt: '2026-05-15T00:00:00Z', builtin: true },
+  { id: 'wall-1-18-tall', toolSlug: 'wall', name: '1:18 tall wall (10 ft)', params: { ...WALL_DEFAULT, heightIn: 6.67, blocking: { mode: 'half', heightFraction: 0.5 } }, createdAt: '2026-05-15T00:00:00Z', builtin: true },
+];
+
 const isToolPreset = (x: unknown): x is ToolPreset<unknown> => {
   if (typeof x !== 'object' || x === null) return false;
   const o = x as Record<string, unknown>;
@@ -43,6 +67,7 @@ const isToolPreset = (x: unknown): x is ToolPreset<unknown> => {
 
 function builtinsFor(slug: string): ToolPreset<unknown>[] {
   if (slug === 'roof') return BUILTIN_ROOF_PRESETS as ToolPreset<unknown>[];
+  if (slug === 'wall') return BUILTIN_WALL_PRESETS as ToolPreset<unknown>[];
   return [];
 }
 
