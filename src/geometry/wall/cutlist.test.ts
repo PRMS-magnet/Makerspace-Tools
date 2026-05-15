@@ -33,12 +33,12 @@ describe('buildWallCutListPieces', () => {
     expect(pieces.filter((p) => p.placement?.kind === 'wall-top-plate').length).toBe(2);
   });
 
-  it('attaches engrave marks as features on each plate piece', () => {
+  it('attaches engrave marks as features on each plate piece (2 per stud)', () => {
     const { pieces } = buildWallCutListPieces(DEFAULTS, 'main');
     const bottom = pieces.find((p) => p.placement?.kind === 'wall-bottom-plate')!;
     const top = pieces.find((p) => p.placement?.kind === 'wall-top-plate')!;
-    expect(bottom.engravedFeatures?.length).toBe(6);
-    expect(top.engravedFeatures?.length).toBe(6);
+    expect(bottom.engravedFeatures?.length).toBe(12);
+    expect(top.engravedFeatures?.length).toBe(12);
   });
 
   it('only the bottom layer of a doubled top plate carries engrave marks', () => {
@@ -46,7 +46,7 @@ describe('buildWallCutListPieces', () => {
     const tops = pieces.filter((p) => p.placement?.kind === 'wall-top-plate');
     const layer0 = tops.find((p) => (p.placement as { layer: number }).layer === 0)!;
     const layer1 = tops.find((p) => (p.placement as { layer: number }).layer === 1)!;
-    expect(layer0.engravedFeatures?.length).toBe(6);
+    expect(layer0.engravedFeatures?.length).toBe(12);
     expect(layer1.engravedFeatures?.length).toBe(0);
   });
 

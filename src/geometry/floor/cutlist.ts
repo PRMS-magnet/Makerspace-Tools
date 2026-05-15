@@ -18,22 +18,26 @@ function joistMarksOnSegment(
   segStartX: number,
   segEndX: number,
   rimOffsetX: number,
-  _joistThicknessIn: number,
+  joistThicknessIn: number,
   stockThicknessIn: number,
   rimCutHeightIn: number,
 ): Polygon[] {
   const marks: Polygon[] = [];
   const markVOffset = (rimCutHeightIn - stockThicknessIn) / 2;
   const w = MARK_LINE_WIDTH_IN;
+  const halfJoist = joistThicknessIn / 2;
   for (const xCenter of joistPositionsIn) {
     if (xCenter < segStartX - 1e-9 || xCenter > segEndX + 1e-9) continue;
-    const localX = xCenter - segStartX + rimOffsetX - w / 2;
-    marks.push([
-      [localX, markVOffset],
-      [localX + w, markVOffset],
-      [localX + w, markVOffset + stockThicknessIn],
-      [localX, markVOffset + stockThicknessIn],
-    ]);
+    const baseLocal = xCenter - segStartX + rimOffsetX;
+    for (const offset of [-halfJoist, halfJoist]) {
+      const localX = baseLocal + offset - w / 2;
+      marks.push([
+        [localX, markVOffset],
+        [localX + w, markVOffset],
+        [localX + w, markVOffset + stockThicknessIn],
+        [localX, markVOffset + stockThicknessIn],
+      ]);
+    }
   }
   return marks;
 }

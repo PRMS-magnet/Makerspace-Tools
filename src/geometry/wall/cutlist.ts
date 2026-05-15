@@ -18,22 +18,26 @@ function studMarksOnSegment(
   segStartX: number,
   segEndX: number,
   plateOffsetX: number,
-  _studWidthIn: number,
+  studWidthIn: number,
   stockThicknessIn: number,
   plateCutHeightIn: number,
 ): Polygon[] {
   const marks: Polygon[] = [];
   const markVOffset = (plateCutHeightIn - stockThicknessIn) / 2;
   const w = MARK_LINE_WIDTH_IN;
+  const halfStud = studWidthIn / 2;
   for (const xCenter of studPositionsIn) {
     if (xCenter < segStartX - 1e-9 || xCenter > segEndX + 1e-9) continue;
-    const localX = xCenter - segStartX + plateOffsetX - w / 2;
-    marks.push([
-      [localX, markVOffset],
-      [localX + w, markVOffset],
-      [localX + w, markVOffset + stockThicknessIn],
-      [localX, markVOffset + stockThicknessIn],
-    ]);
+    const baseLocal = xCenter - segStartX + plateOffsetX;
+    for (const offset of [-halfStud, halfStud]) {
+      const localX = baseLocal + offset - w / 2;
+      marks.push([
+        [localX, markVOffset],
+        [localX + w, markVOffset],
+        [localX + w, markVOffset + stockThicknessIn],
+        [localX, markVOffset + stockThicknessIn],
+      ]);
+    }
   }
   return marks;
 }

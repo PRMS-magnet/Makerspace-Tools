@@ -24,12 +24,12 @@ describe('buildFloorCutListPieces', () => {
     expect(pieces.length).toBe(2 + 6);
   });
 
-  it('rim pieces carry joist engrave marks', () => {
+  it('rim pieces carry joist engrave marks (2 per joist)', () => {
     const { pieces } = buildFloorCutListPieces(DEFAULTS, 'main');
     const rims = pieces.filter((p) => p.placement?.kind === 'floor-rim');
     expect(rims.length).toBe(2);
     for (const rim of rims) {
-      expect(rim.engravedFeatures?.length).toBe(6);
+      expect(rim.engravedFeatures?.length).toBe(12);
     }
   });
 
