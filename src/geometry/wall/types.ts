@@ -11,6 +11,7 @@ export interface WallUnit {
   doubleTopPlate: boolean;
   blocking: BlockingSpec;
   blockingThicknessIn: number;
+  stockThicknessIn: number;
 }
 
 export type BlockingSpec =
@@ -54,5 +55,10 @@ export function wallParamsToUnit(p: WallParams, id = 'main'): WallUnit {
     doubleTopPlate: p.doubleTopPlate,
     blocking: p.blocking,
     blockingThicknessIn: p.blockingThicknessIn,
+    stockThicknessIn: p.stockThicknessIn,
   };
+}
+
+export function effectivePlateCutHeight(plateHeightIn: number, stockThicknessIn: number): number {
+  return Math.max(plateHeightIn, stockThicknessIn);
 }

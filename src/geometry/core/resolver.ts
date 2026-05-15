@@ -459,7 +459,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
     case 'wall-bottom-plate': {
       const f = ctx.wallFrames.get(p.wallId);
       if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
-      const localOrigin: Vec3 = [0, 0, 0];
+      const localOrigin: Vec3 = [-f.unit.studWidthIn / 2, 0, 0];
       const localU: Vec3 = [1, 0, 0];
       const localV: Vec3 = [0, 1, 0];
       const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
@@ -469,7 +469,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const f = ctx.wallFrames.get(p.wallId);
       if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
       const z = f.unit.heightIn - (p.layer + 1) * f.unit.topPlateHeightIn;
-      const localOrigin: Vec3 = [0, 0, z];
+      const localOrigin: Vec3 = [-f.unit.studWidthIn / 2, 0, z];
       const localU: Vec3 = [1, 0, 0];
       const localV: Vec3 = [0, 1, 0];
       const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);

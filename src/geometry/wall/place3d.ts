@@ -1,5 +1,6 @@
 import type { Piece, Piece3D } from '../core/types';
 import type { WallParams } from './types';
+import { effectivePlateCutHeight } from './types';
 import { computeWallGeometry, computeStudPositions } from './compute';
 import { resolveBlockingRows } from './blocking';
 import { rectanglePolygon } from './polygons';
@@ -25,6 +26,7 @@ export function computeWallPieces3D(p: WallParams, wallId: string): Piece3D[] {
     doubleTopPlate: p.doubleTopPlate,
     blocking: p.blocking,
     blockingThicknessIn: p.blockingThicknessIn,
+    stockThicknessIn: p.stockThicknessIn,
   };
 
   const frame: WallFrame = {
@@ -47,15 +49,16 @@ export function computeWallPieces3D(p: WallParams, wallId: string): Piece3D[] {
 
   const declared: Piece[] = [];
 
+  const plateTotalLen = p.widthIn + p.studWidthIn;
   declared.push({
-    polygon: rectanglePolygon(p.widthIn, p.studDepthIn),
+    polygon: rectanglePolygon(plateTotalLen, p.studDepthIn),
     op: 'cut',
     label: 'bottom-plate',
     placement: { kind: 'wall-bottom-plate', wallId },
   });
   for (let layer = 0; layer < geom.nTopPlateLayers; layer++) {
     declared.push({
-      polygon: rectanglePolygon(p.widthIn, p.studDepthIn),
+      polygon: rectanglePolygon(plateTotalLen, p.studDepthIn),
       op: 'cut',
       label: 'top-plate',
       placement: { kind: 'wall-top-plate', wallId, layer: layer as 0 | 1 },

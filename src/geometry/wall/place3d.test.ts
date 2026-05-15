@@ -9,11 +9,12 @@ const DEFAULTS: WallParams = {
   studWidthIn: 0.083,
   studDepthIn: 0.194,
   nStudsOverride: 6,
-  topPlateHeightIn: 0.083,
-  bottomPlateHeightIn: 0.083,
+  topPlateHeightIn: 0.125,
+  bottomPlateHeightIn: 0.125,
   doubleTopPlate: false,
   blocking: { mode: 'none' },
   blockingThicknessIn: 0.083,
+  stockThicknessIn: 0.125,
   sheetWidthIn: 12.0,
   maxPieceLengthIn: 12.0,
   marginIn: 0.12,
@@ -34,7 +35,13 @@ describe('computeWallPieces3D', () => {
   it('top plate sits one plate-height below wall height', () => {
     const pieces = computeWallPieces3D(DEFAULTS, 'main');
     const top = pieces.find((p) => p.placement?.kind === 'wall-top-plate');
-    expect(top?.origin[2]).toBeCloseTo(5.33 - 0.083, 6);
+    expect(top?.origin[2]).toBeCloseTo(5.33 - 0.125, 6);
+  });
+
+  it('plates extend by studWidthIn/2 past the outer studs', () => {
+    const pieces = computeWallPieces3D(DEFAULTS, 'main');
+    const bottom = pieces.find((p) => p.placement?.kind === 'wall-bottom-plate')!;
+    expect(bottom.origin[0]).toBeCloseTo(-0.083 / 2, 6);
   });
 
   it('first stud x = position - studWidthIn/2', () => {

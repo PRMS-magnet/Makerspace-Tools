@@ -9,11 +9,12 @@ const DEFAULTS: WallParams = {
   studWidthIn: 0.083,
   studDepthIn: 0.194,
   nStudsOverride: null,
-  topPlateHeightIn: 0.083,
-  bottomPlateHeightIn: 0.083,
+  topPlateHeightIn: 0.125,
+  bottomPlateHeightIn: 0.125,
   doubleTopPlate: false,
   blocking: { mode: 'none' },
   blockingThicknessIn: 0.083,
+  stockThicknessIn: 0.125,
   sheetWidthIn: 12.0,
   maxPieceLengthIn: 12.0,
   marginIn: 0.12,
@@ -22,13 +23,13 @@ const DEFAULTS: WallParams = {
 describe('computeWallGeometry', () => {
   it('computes inter-plate height with single top plate', () => {
     const g = computeWallGeometry(DEFAULTS);
-    expect(g.interPlateHeightIn).toBeCloseTo(5.33 - 0.083 - 0.083, 6);
+    expect(g.interPlateHeightIn).toBeCloseTo(5.33 - 0.125 - 0.125, 6);
     expect(g.nTopPlateLayers).toBe(1);
   });
 
   it('subtracts two top plates when doubled', () => {
     const g = computeWallGeometry({ ...DEFAULTS, doubleTopPlate: true });
-    expect(g.interPlateHeightIn).toBeCloseTo(5.33 - 0.083 - 0.083 - 0.083, 6);
+    expect(g.interPlateHeightIn).toBeCloseTo(5.33 - 0.125 - 0.125 - 0.125, 6);
     expect(g.nTopPlateLayers).toBe(2);
   });
 

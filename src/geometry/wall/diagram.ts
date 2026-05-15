@@ -13,17 +13,19 @@ export function buildWallDiagramSvg(p: WallParams): string {
   const nBays = Math.max(0, studPositions.length - 1);
   const blockRows = resolveBlockingRows(p.blocking, nBays, geom.interPlateHeightIn);
 
-  const w = p.widthIn + 2 * margin;
+  const plateOverhang = p.studWidthIn / 2;
+  const plateTotalLen = p.widthIn + p.studWidthIn;
+  const w = plateTotalLen + 2 * margin;
   const h = p.heightIn + 2 * margin;
   const parts: string[] = [];
 
   parts.push(
-    `<rect x="${fmt(margin)}" y="${fmt(margin + p.heightIn - p.bottomPlateHeightIn)}" width="${fmt(p.widthIn)}" height="${fmt(p.bottomPlateHeightIn)}" fill="#d4a373" stroke="#000" stroke-width="0.01"/>`,
+    `<rect x="${fmt(margin - plateOverhang)}" y="${fmt(margin + p.heightIn - p.bottomPlateHeightIn)}" width="${fmt(plateTotalLen)}" height="${fmt(p.bottomPlateHeightIn)}" fill="#d4a373" stroke="#000" stroke-width="0.01"/>`,
   );
   for (let layer = 0; layer < geom.nTopPlateLayers; layer++) {
     const y = margin + layer * p.topPlateHeightIn;
     parts.push(
-      `<rect x="${fmt(margin)}" y="${fmt(y)}" width="${fmt(p.widthIn)}" height="${fmt(p.topPlateHeightIn)}" fill="#d4a373" stroke="#000" stroke-width="0.01"/>`,
+      `<rect x="${fmt(margin - plateOverhang)}" y="${fmt(y)}" width="${fmt(plateTotalLen)}" height="${fmt(p.topPlateHeightIn)}" fill="#d4a373" stroke="#000" stroke-width="0.01"/>`,
     );
   }
 
