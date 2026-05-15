@@ -528,7 +528,10 @@ const previewViews = [
 
     const nStuds = piecesResult.pieces3D.filter((x) => x.placement?.kind === 'wall-stud').length;
     const nBlocks = piecesResult.pieces3D.filter((x) => x.placement?.kind === 'wall-block').length;
-    const nPlates = piecesResult.pieces3D.filter((x) => x.placement?.kind === 'wall-plate').length;
+    const nPlates = piecesResult.pieces3D.filter((x) => {
+      const k = x.placement?.kind;
+      return k === 'wall-bottom-plate' || k === 'wall-top-plate';
+    }).length;
     derivedEl.innerHTML = `
       <dt>Studs</dt><dd>${nStuds}</dd>
       <dt>Plates</dt><dd>${nPlates}</dd>
