@@ -1,0 +1,764 @@
+---
+import Layout from '../layouts/Layout.astro';
+import FormGroup from '../components/FormGroup.astro';
+import NumberField from '../components/NumberField.astro';
+import CheckboxField from '../components/CheckboxField.astro';
+import ViewToggleBar from '../components/ViewToggleBar.astro';
+import ViewSlot from '../components/ViewSlot.astro';
+import Button from '../components/Button.astro';
+import EmptyState from '../components/EmptyState.astro';
+import ToolPageHeader from '../components/ToolPageHeader.astro';
+import ToolLayout from '../components/ToolLayout.astro';
+import ToolActionBar from '../components/ToolActionBar.astro';
+import SavePresetDialog from '../components/SavePresetDialog.astro';
+
+const previewViews = [
+  { key: 'view3d', label: '3D view' },
+  { key: 'diagram', label: 'Front view' },
+  { key: 'cutlist', label: 'Cut list', defaultVisible: false },
+  { key: 'derived', label: 'Derived', defaultVisible: false },
+  { key: 'warnings', label: 'Warnings' },
+];
+---
+<Layout
+  title="Stud wall cutlist - Makerspace Tools"
+  description="Stud + plate cut list with optional horizontal blocking for 1:18 miniature houses."
+>
+  <div class="tool-page">
+    <ToolPageHeader title="Stud wall cutlist" lead="Stud + plate cut list with optional horizontal blocking." backHref="/" />
+
+    <ToolActionBar>
+      <Button id="toggle-sidebar-btn" ariaLabel="Toggle controls" ariaPressed="true">
+        <span class="icon" aria-hidden="true">&#9776;</span><span class="lbl">Controls</span>
+      </Button>
+      <div class="info">
+        <span>Machine: <strong id="active-machine-name">&mdash;</strong></span>
+        <span>Material: <strong id="active-material-name">&mdash;</strong></span>
+      </div>
+      <label class="preset-picker">
+        Preset
+        <select id="tool-preset-select"></select>
+      </label>
+      <Button id="save-preset-btn">Save preset</Button>
+      <span class="grow"></span>
+      <span class="sep" aria-hidden="true"></span>
+      <Button variant="primary" id="download-cut-btn">Download cut list</Button>
+      <Button id="download-diag-btn">Download diagram</Button>
+    </ToolActionBar>
+
+    <ToolLayout>
+      <form id="params" slot="sidebar" onsubmit="return false">
+        <FormGroup label="Wall dimensions">
+          <NumberField name="widthIn" label="Width (in)" value={8.0} step={0.25} min={0.5} />
+          <NumberField name="heightIn" label="Height (in)" value={5.33} step={0.25} min={0.5} />
+        </FormGroup>
+        <FormGroup label="Studs">
+          <NumberField name="studSpacingIn" label="Stud spacing (in, o.c.)" value={0.889} step={0.0625} min={0.125} />
+          <NumberField name="studWidthIn" label="Stud width (in)" value={0.083} step={0.0625} min={0.0625} />
+          <NumberField name="studDepthIn" label="Stud depth (in)" value={0.194} step={0.0625} min={0.0625} />
+          <CheckboxField name="useOverride" label="Override stud count" checked={false} />
+          <NumberField name="nStudsOverride" label="Stud count" value={6} step={1} min={2} max={100} />
+        </FormGroup>
+        <FormGroup label="Plates">
+          <NumberField name="topPlateHeightIn" label="Top plate height (in)" value={0.083} step={0.0625} min={0.0625} />
+          <NumberField name="bottomPlateHeightIn" label="Bottom plate height (in)" value={0.083} step={0.0625} min={0.0625} />
+          <CheckboxField name="doubleTopPlate" label="Double top plate" checked={false} />
+        </FormGroup>
+        <FormGroup label="Blocking">
+          <label class="select-row">
+            <span>Mode</span>
+            <select id="blocking-mode-select">
+              <option value="none">None</option>
+              <option value="half">Half (one row mid-height)</option>
+              <option value="staggered">Staggered (3-2-3)</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          <NumberField name="blockingThicknessIn" label="Block thickness (in)" value={0.083} step={0.0625} min={0.0625} />
+          <div id="blocking-fields"></div>
+        </FormGroup>
+        <FormGroup label="Stock">
+          <NumberField name="sheetWidthIn" label="Sheet width (in)" value={12} step={0.5} min={1} />
+          <NumberField name="maxPieceLengthIn" label="Max piece length (in)" value={12} step={0.5} min={1} />
+          <NumberField name="marginIn" label="Margin (in)" value={0.12} step={0.01} min={0} />
+          <NumberField name="pieceSpacingIn" label="Piece spacing (in)" value={0.06} step={0.01} min={0} />
+        </FormGroup>
+        <Button id="reset-btn" variant="subtle" block={true}>Reset to preset</Button>
+      </form>
+
+      <div slot="main" class="preview">
+        <ViewToggleBar options={previewViews} />
+        <EmptyState id="empty-state">Toggle a view above to see the output.</EmptyState>
+
+        <div class="view-grid">
+          <ViewSlot name="view3d" label="3D view">
+            <div
+              id="view3d-host"
+              class="view3d-host"
+              tabindex="0"
+              role="img"
+              aria-label="3D preview of the wall framing. Use the controls below for the same data as text."
+              aria-describedby="derived"
+            ></div>
+          </ViewSlot>
+          <ViewSlot name="diagram" label="Front view">
+            <div id="diagram-preview" class="svg-slot"></div>
+          </ViewSlot>
+          <ViewSlot name="cutlist" label="Cut list layout">
+            <div id="cutlist-preview" class="svg-slot"></div>
+          </ViewSlot>
+          <ViewSlot name="derived" label="Derived dimensions">
+            <dl id="derived" aria-live="polite"></dl>
+          </ViewSlot>
+          <ViewSlot name="warnings" label="Warnings">
+            <div id="warnings" class="warnings" aria-live="polite"></div>
+          </ViewSlot>
+        </div>
+      </div>
+    </ToolLayout>
+  </div>
+
+  <SavePresetDialog id="save-preset-dialog" />
+</Layout>
+
+<style>
+  .tool-page {
+    max-width: 100%;
+    padding: 20px 24px 40px;
+    box-sizing: border-box;
+  }
+
+  .tool-action-bar .info { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); }
+  .tool-action-bar .grow { flex: 1; min-width: 8px; }
+  .tool-action-bar .sep {
+    display: inline-block; width: 1px; height: 20px;
+    background: var(--rule); margin: 0 4px;
+    align-self: center;
+  }
+  .tool-action-bar .preset-picker { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .tool-action-bar select {
+    font-family: inherit; font-size: 14px; padding: 4px 6px;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--rule);
+    min-height: 32px;
+  }
+  .icon { font-size: 14px; }
+
+  .preview {
+    min-width: 0;
+    max-width: 1400px;
+  }
+
+  .view-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .svg-slot {
+    background: var(--bg); border: 1px solid var(--rule);
+    padding: 12px; min-height: 120px;
+    overflow: hidden;
+  }
+  .svg-slot svg { display: block; width: 100%; height: auto; max-width: 100%; }
+
+  .view3d-host {
+    background: var(--bg); border: 1px solid var(--rule);
+    height: 420px; min-height: 320px;
+    overflow: hidden;
+    position: relative;
+  }
+  .view3d-host canvas { display: block; width: 100%; height: 100%; }
+
+  dl#derived { font-size: 14px; margin: 0; padding: 12px 16px; border: 1px solid var(--rule); }
+  dl#derived dt { color: var(--subtle); margin-top: 4px; font-size: 13px; }
+  dl#derived dt:first-child { margin-top: 0; }
+  dl#derived dd { margin: 0; }
+
+  .warnings { font-size: 14px; padding: 12px 16px; border: 1px solid var(--rule); }
+  .warnings:empty::before { content: "No warnings."; color: var(--subtle); font-style: italic; }
+  .warnings .warn { border-left: 2px solid var(--fg); padding-left: 10px; margin-bottom: 4px; font-style: italic; }
+  .warnings .invalid { border-left-color: var(--invalid); color: var(--invalid); font-style: normal; }
+
+  .select-row {
+    display: block; font-size: 14px; color: var(--muted); margin-bottom: 8px;
+  }
+  .select-row > span { display: block; margin-bottom: 2px; }
+  .select-row select {
+    display: block; width: 100%; box-sizing: border-box;
+    font-family: inherit; font-size: 15px;
+    background: var(--bg); color: var(--fg);
+    border: 1px solid var(--rule); padding: 5px 8px;
+    min-height: 30px;
+  }
+  @media (pointer: coarse) {
+    .select-row select { font-size: 16px; min-height: 40px; padding: 8px 10px; }
+  }
+
+  #blocking-fields .custom-row {
+    display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px;
+    align-items: end; margin-bottom: 6px;
+  }
+  #blocking-fields .custom-row label {
+    font-size: 12px; color: var(--muted);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  #blocking-fields .custom-row input {
+    font: inherit; font-size: 13px; padding: 3px 5px;
+    background: var(--bg); color: var(--fg);
+    border: 1px solid var(--rule); width: 100%; box-sizing: border-box;
+  }
+  #blocking-fields .custom-row button {
+    font: inherit; background: none; border: 1px solid var(--rule);
+    color: var(--subtle); cursor: pointer; padding: 3px 8px;
+  }
+  #blocking-fields .custom-row button:hover { color: var(--invalid); border-color: var(--invalid); }
+  #blocking-fields .add-row-btn {
+    font: inherit; background: var(--bg); color: var(--muted);
+    border: 1px solid var(--rule); padding: 5px 10px; cursor: pointer;
+  }
+  #blocking-fields .add-row-btn:hover { color: var(--fg); border-color: var(--fg); }
+  #blocking-fields .blocking-sub {
+    display: block; font-size: 14px; color: var(--muted); margin-bottom: 8px;
+  }
+  #blocking-fields .blocking-sub > span { display: block; margin-bottom: 2px; }
+  #blocking-fields .blocking-sub input[type="number"] {
+    display: block; width: 100%; box-sizing: border-box;
+    font-family: inherit; font-size: 15px;
+    background: var(--bg); color: var(--fg);
+    border: 1px solid var(--rule); padding: 5px 8px;
+    min-height: 30px;
+  }
+  #blocking-fields .blocking-check {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; color: var(--muted); margin-bottom: 8px;
+    cursor: pointer; min-height: 28px;
+  }
+  #blocking-fields .blocking-check input { margin: 0; width: 16px; height: 16px; }
+
+  @media (max-width: 820px) {
+    .tool-page { padding: 14px 14px 30px; }
+    .tool-action-bar { gap: 8px; padding: 8px 10px; font-size: 13px; }
+    .tool-action-bar .info { flex-basis: 100%; order: 10; font-size: 13px; }
+    .tool-action-bar .sep { display: none; }
+    .tool-action-bar .lbl { display: none; }
+  }
+
+  @media (max-width: 520px) {
+    .tool-page { padding: 12px 12px 28px; }
+    .tool-action-bar .preset-picker { flex-basis: 100%; order: 11; }
+    .tool-action-bar select { width: 100%; min-height: 36px; }
+  }
+
+  @media (pointer: coarse) {
+    .tool-action-bar select { min-height: 38px; padding: 6px 8px; font-size: 15px; }
+  }
+</style>
+
+<script>
+  import { wallPieces, composeWallCutSvg } from '../geometry/wall';
+  import type { WallParams, BlockingSpec } from '../geometry/wall';
+  import { bboxLayoutOnSheet } from '../geometry/core/packing/bbox-fallback';
+  import { getActiveMachine } from '../state/presets/machine';
+  import { getActiveMaterial } from '../state/presets/material';
+  import { listToolPresets, saveToolPreset, getActiveToolPreset, setActiveToolPresetId } from '../state/presets/tool';
+  import { downloadSvg } from '../lib/download';
+  import { makeReorderable } from '../lib/reorderable';
+  import { getCurrentTokens } from '../lib/diagram-tokens';
+
+  const form = document.getElementById('params') as HTMLFormElement;
+  const diagramSlot = document.getElementById('diagram-preview')!;
+  const cutSlot = document.getElementById('cutlist-preview')!;
+  const derivedEl = document.getElementById('derived')!;
+  const warningsEl = document.getElementById('warnings')!;
+  const blockingFieldsEl = document.getElementById('blocking-fields')!;
+  const blockingModeSel = document.getElementById('blocking-mode-select') as HTMLSelectElement;
+  const machineNameEl = document.getElementById('active-machine-name')!;
+  const materialNameEl = document.getElementById('active-material-name')!;
+  const presetSelect = document.getElementById('tool-preset-select') as HTMLSelectElement;
+  const saveBtn = document.getElementById('save-preset-btn') as HTMLButtonElement;
+  const saveDialog = document.getElementById('save-preset-dialog') as HTMLDialogElement;
+  const cutDownloadBtn = document.getElementById('download-cut-btn') as HTMLButtonElement;
+  const diagDownloadBtn = document.getElementById('download-diag-btn') as HTMLButtonElement;
+  const layoutEl = document.querySelector('.tool-layout') as HTMLElement;
+  const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn') as HTMLButtonElement;
+  const viewGrid = document.querySelector('.view-grid') as HTMLElement;
+  const viewToggleInputs = document.querySelectorAll<HTMLInputElement>('input[data-view-toggle]');
+  const viewSlots = document.querySelectorAll<HTMLElement>('[data-view-slot]');
+  const emptyState = document.getElementById('empty-state')!;
+
+  const UI_KEY_SIDEBAR = 'mt:ui:wall:sidebar';
+  const UI_KEY_VIEWS = 'mt:ui:wall:views';
+  const UI_KEY_ORDER = 'mt:ui:wall:order';
+
+  type WallOutput = {
+    cutSvg: string;
+    diagramSvg: string;
+    warnings: string[];
+    pieces3D: import('../geometry/core/types').Piece3D[];
+  };
+  let lastValidOutput: WallOutput | null = null;
+
+  function readBlockingSpec(): BlockingSpec {
+    const mode = blockingModeSel.value as BlockingSpec['mode'];
+    if (mode === 'none') return { mode: 'none' };
+    if (mode === 'half') {
+      const hf = parseFloat((blockingFieldsEl.querySelector('[name=heightFraction]') as HTMLInputElement)?.value ?? '0.5');
+      return { mode: 'half', heightFraction: hf };
+    }
+    if (mode === 'staggered') {
+      const dc = parseInt((blockingFieldsEl.querySelector('[name=denseCount]') as HTMLInputElement)?.value ?? '3', 10);
+      const sc = parseInt((blockingFieldsEl.querySelector('[name=sparseCount]') as HTMLInputElement)?.value ?? '2', 10);
+      const sd = (blockingFieldsEl.querySelector('[name=startDense]') as HTMLInputElement)?.checked ?? true;
+      return { mode: 'staggered', denseCount: dc, sparseCount: sc, startDense: sd };
+    }
+    const rowEls = Array.from(blockingFieldsEl.querySelectorAll('[data-custom-row]'));
+    const rows = rowEls.map((el) => ({
+      bayIndex: parseInt((el.querySelector('[name=bayIndex]') as HTMLInputElement).value, 10),
+      heightFraction: parseFloat((el.querySelector('[name=heightFraction]') as HTMLInputElement).value),
+    }));
+    return { mode: 'custom', rows };
+  }
+
+  function renderBlockingFields(): void {
+    const mode = blockingModeSel.value;
+    blockingFieldsEl.replaceChildren();
+    if (mode === 'half') {
+      blockingFieldsEl.innerHTML = `
+        <label class="blocking-sub"><span>Height fraction</span>
+          <input type="number" name="heightFraction" value="0.5" step="0.05" min="0.1" max="0.9"/>
+        </label>`;
+    } else if (mode === 'staggered') {
+      blockingFieldsEl.innerHTML = `
+        <label class="blocking-sub"><span>Dense count</span>
+          <input type="number" name="denseCount" value="3" step="1" min="1" max="10"/>
+        </label>
+        <label class="blocking-sub"><span>Sparse count</span>
+          <input type="number" name="sparseCount" value="2" step="1" min="0" max="10"/>
+        </label>
+        <label class="blocking-check"><input type="checkbox" name="startDense" checked/> Start with dense bay</label>`;
+    } else if (mode === 'custom') {
+      blockingFieldsEl.innerHTML = `<div id="custom-rows"></div><button type="button" class="add-row-btn" id="add-custom-row">+ Add row</button>`;
+      document.getElementById('add-custom-row')?.addEventListener('click', () => {
+        addCustomRow();
+        recompute();
+      });
+    }
+  }
+
+  function addCustomRow(bayIndex = -1, heightFraction = 0.5): void {
+    const rowsEl = document.getElementById('custom-rows');
+    if (!rowsEl) return;
+    const row = document.createElement('div');
+    row.dataset.customRow = '';
+    row.className = 'custom-row';
+    row.innerHTML = `
+      <label>Bay <input type="number" name="bayIndex" value="${bayIndex}" step="1" min="-1"/></label>
+      <label>Fraction <input type="number" name="heightFraction" value="${heightFraction}" step="0.05" min="0.05" max="0.95"/></label>
+      <button type="button" data-remove>x</button>
+    `;
+    row.querySelector('[data-remove]')?.addEventListener('click', () => { row.remove(); recompute(); });
+    rowsEl.appendChild(row);
+  }
+
+  function readParams(): WallParams {
+    const fd = new FormData(form);
+    const num = (k: string) => Number(fd.get(k));
+    const useOverride = (form.elements.namedItem('useOverride') as HTMLInputElement).checked;
+    return {
+      widthIn: num('widthIn'),
+      heightIn: num('heightIn'),
+      studSpacingIn: num('studSpacingIn'),
+      studWidthIn: num('studWidthIn'),
+      studDepthIn: num('studDepthIn'),
+      nStudsOverride: useOverride ? num('nStudsOverride') : null,
+      topPlateHeightIn: num('topPlateHeightIn'),
+      bottomPlateHeightIn: num('bottomPlateHeightIn'),
+      doubleTopPlate: (form.elements.namedItem('doubleTopPlate') as HTMLInputElement).checked,
+      blocking: readBlockingSpec(),
+      blockingThicknessIn: num('blockingThicknessIn'),
+      sheetWidthIn: num('sheetWidthIn'),
+      maxPieceLengthIn: num('maxPieceLengthIn'),
+      marginIn: num('marginIn'),
+      pieceSpacingIn: num('pieceSpacingIn'),
+    };
+  }
+
+  function validateParams(p: WallParams): string | null {
+    const checks: Array<[string, number, number]> = [
+      ['width', p.widthIn, 0.5],
+      ['height', p.heightIn, 0.5],
+      ['stud spacing', p.studSpacingIn, 0.125],
+      ['stud width', p.studWidthIn, 0.0625],
+      ['stud depth', p.studDepthIn, 0.0625],
+      ['top plate height', p.topPlateHeightIn, 0.0625],
+      ['bottom plate height', p.bottomPlateHeightIn, 0.0625],
+      ['blocking thickness', p.blockingThicknessIn, 0.0625],
+      ['sheet width', p.sheetWidthIn, 1],
+      ['max piece length', p.maxPieceLengthIn, 1],
+      ['margin', p.marginIn, 0],
+    ];
+    for (const [name, val, min] of checks) {
+      if (!Number.isFinite(val) || val < min) return `${name} must be at least ${min}`;
+    }
+    const pieceSp = p.pieceSpacingIn;
+    if (pieceSp !== undefined && (!Number.isFinite(pieceSp) || pieceSp < 0)) {
+      return 'piece spacing must be 0 or greater';
+    }
+    const platesTotal = p.topPlateHeightIn * (p.doubleTopPlate ? 2 : 1) + p.bottomPlateHeightIn;
+    if (platesTotal >= p.heightIn) return 'plates exceed wall height';
+    if (p.marginIn * 2 >= p.sheetWidthIn) return 'margin too large for sheet width';
+    if (p.nStudsOverride !== null) {
+      if (!Number.isInteger(p.nStudsOverride) || p.nStudsOverride < 2 || p.nStudsOverride > 100) {
+        return 'stud count must be a whole number from 2 to 100';
+      }
+    }
+    return null;
+  }
+
+  function populateForm(p: WallParams): void {
+    const setVal = (name: string, v: number | null | undefined) => {
+      if (v === undefined) return;
+      const el = form.elements.namedItem(name) as HTMLInputElement;
+      if (el) el.value = String(v ?? '');
+    };
+    setVal('widthIn', p.widthIn);
+    setVal('heightIn', p.heightIn);
+    setVal('studSpacingIn', p.studSpacingIn);
+    setVal('studWidthIn', p.studWidthIn);
+    setVal('studDepthIn', p.studDepthIn);
+    const useOverride = form.elements.namedItem('useOverride') as HTMLInputElement;
+    useOverride.checked = p.nStudsOverride !== null;
+    setVal('nStudsOverride', p.nStudsOverride ?? 6);
+    setVal('topPlateHeightIn', p.topPlateHeightIn);
+    setVal('bottomPlateHeightIn', p.bottomPlateHeightIn);
+    (form.elements.namedItem('doubleTopPlate') as HTMLInputElement).checked = p.doubleTopPlate;
+    setVal('blockingThicknessIn', p.blockingThicknessIn);
+    setVal('sheetWidthIn', p.sheetWidthIn);
+    setVal('maxPieceLengthIn', p.maxPieceLengthIn);
+    setVal('marginIn', p.marginIn);
+    setVal('pieceSpacingIn', p.pieceSpacingIn ?? 0.06);
+    blockingModeSel.value = p.blocking.mode;
+    renderBlockingFields();
+    if (p.blocking.mode === 'custom') {
+      for (const r of p.blocking.rows) addCustomRow(r.bayIndex, r.heightFraction);
+    } else if (p.blocking.mode === 'half') {
+      const hfEl = blockingFieldsEl.querySelector('[name=heightFraction]') as HTMLInputElement | null;
+      if (hfEl) hfEl.value = String(p.blocking.heightFraction);
+    } else if (p.blocking.mode === 'staggered') {
+      const dcEl = blockingFieldsEl.querySelector('[name=denseCount]') as HTMLInputElement | null;
+      const scEl = blockingFieldsEl.querySelector('[name=sparseCount]') as HTMLInputElement | null;
+      const sdEl = blockingFieldsEl.querySelector('[name=startDense]') as HTMLInputElement | null;
+      if (dcEl) dcEl.value = String(p.blocking.denseCount);
+      if (scEl) scEl.value = String(p.blocking.sparseCount);
+      if (sdEl) sdEl.checked = p.blocking.startDense;
+    }
+  }
+
+  type ViewerHandle = {
+    setPieces: (p: import('../geometry/core/types').Piece3D[]) => void;
+    setTokens: (t: import('../lib/diagram-tokens').DiagramTokens, opts?: { animate?: boolean; durationMs?: number }) => void;
+    resize: () => void;
+    destroy: () => void;
+  };
+  let viewer3DPromise: Promise<ViewerHandle | null> | null = null;
+  function ensureViewer3D(): Promise<ViewerHandle | null> {
+    if (viewer3DPromise) return viewer3DPromise;
+    const host = document.getElementById('view3d-host') as HTMLElement | null;
+    if (!host) return Promise.resolve(null);
+    viewer3DPromise = import('../lib/roof-viewer-3d')
+      .then((mod) => mod.mountRoofViewer(host, getCurrentTokens()))
+      .catch((err) => {
+        viewer3DPromise = null;
+        console.error('3D viewer failed to mount', err);
+        return null;
+      });
+    return viewer3DPromise;
+  }
+  async function updateViewer3D(): Promise<void> {
+    const slot = document.querySelector('[data-view-slot="view3d"]') as HTMLElement | null;
+    if (!slot || slot.hidden) return;
+    const v = await ensureViewer3D();
+    if (!v || !lastValidOutput) return;
+    v.setPieces(lastValidOutput.pieces3D);
+    v.resize();
+  }
+
+  function appendWarning(parent: HTMLElement, text: string, invalid = false): void {
+    const d = document.createElement('div');
+    d.className = invalid ? 'warn invalid' : 'warn';
+    d.textContent = text;
+    parent.appendChild(d);
+  }
+
+  function renderWarnings(base: string[]): void {
+    warningsEl.replaceChildren();
+    for (const w of base) appendWarning(warningsEl, `note: ${w}`);
+  }
+
+  function cutListVisible(): boolean {
+    const slot = document.querySelector('[data-view-slot="cutlist"]') as HTMLElement | null;
+    return !!slot && !slot.hidden;
+  }
+
+  function recompute(): void {
+    if (recomputeDebounce !== null) {
+      window.clearTimeout(recomputeDebounce);
+      recomputeDebounce = null;
+    }
+    const p = readParams();
+    const err = validateParams(p);
+    if (err) {
+      warningsEl.replaceChildren();
+      appendWarning(warningsEl, `fix this to refresh preview: ${err}`, true);
+      return;
+    }
+
+    const piecesResult = wallPieces(p);
+    const bbox = bboxLayoutOnSheet(piecesResult.pieces, piecesResult.sheet);
+    const cutSvg = composeWallCutSvg(bbox.placed, bbox.totalHeightIn, p.sheetWidthIn);
+    const out: WallOutput = {
+      cutSvg,
+      diagramSvg: piecesResult.diagramSvg,
+      warnings: [...piecesResult.warnings, ...bbox.warnings],
+      pieces3D: piecesResult.pieces3D,
+    };
+    lastValidOutput = out;
+    diagramSlot.innerHTML = out.diagramSvg;
+    if (cutListVisible()) cutSlot.innerHTML = cutSvg;
+
+    const nStuds = piecesResult.pieces3D.filter((x) => x.placement?.kind === 'wall-stud').length;
+    const nBlocks = piecesResult.pieces3D.filter((x) => x.placement?.kind === 'wall-block').length;
+    const nPlates = piecesResult.pieces3D.filter((x) => x.placement?.kind === 'wall-plate').length;
+    derivedEl.innerHTML = `
+      <dt>Studs</dt><dd>${nStuds}</dd>
+      <dt>Plates</dt><dd>${nPlates}</dd>
+      <dt>Blocks</dt><dd>${nBlocks}</dd>
+      <dt>Sheet</dt><dd>${bbox.totalHeightIn.toFixed(2)}&Prime; tall &times; ${p.sheetWidthIn.toFixed(2)}&Prime; wide</dd>
+    `;
+    renderWarnings(out.warnings);
+    scheduleFitLayout();
+    void updateViewer3D();
+  }
+
+  const MIN_COL_WIDTH_PX = 380;
+  const VIEWPORT_BREATHING_PX = 32;
+
+  let fitRaf: number | null = null;
+  function scheduleFitLayout(): void {
+    if (fitRaf !== null) return;
+    fitRaf = requestAnimationFrame(() => {
+      fitRaf = null;
+      fitLayout();
+    });
+  }
+
+  function fitLayout(): void {
+    const visible = [...viewGrid.querySelectorAll<HTMLElement>(':scope > [data-view-slot]:not([hidden])')];
+    if (visible.length === 0) return;
+
+    const containerWidth = viewGrid.offsetWidth;
+    const maxColsByWidth = Math.max(1, Math.floor(containerWidth / MIN_COL_WIDTH_PX));
+    const maxCols = Math.min(visible.length, maxColsByWidth);
+
+    let cols = 1;
+    viewGrid.style.gridTemplateColumns = 'minmax(0, 1fr)';
+    void viewGrid.offsetHeight;
+
+    const availableHeight = window.innerHeight - viewGrid.getBoundingClientRect().top - VIEWPORT_BREATHING_PX;
+
+    while (cols < maxCols && viewGrid.offsetHeight > availableHeight) {
+      cols++;
+      viewGrid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+      void viewGrid.offsetHeight;
+    }
+  }
+
+  function refreshActivePresetDisplay(): void {
+    machineNameEl.textContent = getActiveMachine().name;
+    materialNameEl.textContent = getActiveMaterial().name;
+  }
+
+  function refreshToolPresetSelect(): void {
+    const list = listToolPresets<WallParams>('wall');
+    const active = getActiveToolPreset<WallParams>('wall');
+    presetSelect.replaceChildren();
+    for (const pr of list) {
+      const opt = document.createElement('option');
+      opt.value = pr.id;
+      opt.textContent = `${pr.name}${pr.builtin ? '' : ' (saved)'}`;
+      if (pr.id === active.id) opt.selected = true;
+      presetSelect.appendChild(opt);
+    }
+  }
+
+  function applyViewVisibility(): void {
+    const visible = new Set<string>();
+    viewToggleInputs.forEach((input) => {
+      if (input.checked) visible.add(input.dataset.viewToggle!);
+    });
+    viewSlots.forEach((slot) => {
+      slot.hidden = !visible.has(slot.dataset.viewSlot!);
+    });
+    emptyState.hidden = visible.size > 0;
+    try { localStorage.setItem(UI_KEY_VIEWS, JSON.stringify([...visible])); } catch {}
+    scheduleFitLayout();
+  }
+
+  function loadViewVisibility(): void {
+    try {
+      const raw = localStorage.getItem(UI_KEY_VIEWS);
+      if (raw === null) return;
+      const arr: unknown = JSON.parse(raw);
+      if (!Array.isArray(arr)) return;
+      const set = new Set(arr.filter((v): v is string => typeof v === 'string'));
+      viewToggleInputs.forEach((input) => {
+        input.checked = set.has(input.dataset.viewToggle!);
+      });
+    } catch {}
+  }
+
+  function applySidebarState(): void {
+    const isOpen = layoutEl.dataset.sidebar === 'open';
+    toggleSidebarBtn.setAttribute('aria-pressed', String(isOpen));
+    try { localStorage.setItem(UI_KEY_SIDEBAR, isOpen ? 'open' : 'closed'); } catch {}
+  }
+
+  function loadSidebarState(): void {
+    try {
+      const v = localStorage.getItem(UI_KEY_SIDEBAR);
+      if (v === 'closed') layoutEl.dataset.sidebar = 'closed';
+    } catch {}
+  }
+
+  function loadSlotOrder(): void {
+    try {
+      const raw = localStorage.getItem(UI_KEY_ORDER);
+      if (raw === null) return;
+      const order: unknown = JSON.parse(raw);
+      if (!Array.isArray(order)) return;
+      const byKey = new Map<string, HTMLElement>();
+      viewGrid.querySelectorAll<HTMLElement>('[data-view-slot]').forEach((s) => {
+        byKey.set(s.dataset.viewSlot!, s);
+      });
+      for (const v of order) {
+        if (typeof v !== 'string') continue;
+        const el = byKey.get(v);
+        if (el) viewGrid.appendChild(el);
+      }
+    } catch {}
+  }
+
+  viewToggleInputs.forEach((input) => {
+    input.addEventListener('change', () => {
+      applyViewVisibility();
+      if (input.dataset.viewToggle === 'view3d' && input.checked) void updateViewer3D();
+      if (input.dataset.viewToggle === 'cutlist' && input.checked) recompute();
+    });
+  });
+
+  toggleSidebarBtn.addEventListener('click', () => {
+    layoutEl.dataset.sidebar = layoutEl.dataset.sidebar === 'open' ? 'closed' : 'open';
+    applySidebarState();
+    scheduleFitLayout();
+    setTimeout(scheduleFitLayout, 250);
+  });
+
+  window.addEventListener('resize', scheduleFitLayout);
+
+  blockingModeSel.addEventListener('change', () => {
+    renderBlockingFields();
+    recompute();
+  });
+
+  presetSelect.addEventListener('change', () => {
+    setActiveToolPresetId('wall', presetSelect.value);
+    const active = getActiveToolPreset<WallParams>('wall');
+    populateForm(active.params);
+    recompute();
+  });
+
+  saveBtn.addEventListener('click', () => { saveDialog.showModal(); });
+
+  saveDialog.addEventListener('click', (e) => {
+    if (e.target === saveDialog) saveDialog.close();
+  });
+
+  saveDialog.addEventListener('close', () => {
+    if (saveDialog.returnValue !== 'confirm') return;
+    const nameInput = saveDialog.querySelector('input[name="preset-name"]') as HTMLInputElement | null;
+    if (!nameInput) return;
+    const name = nameInput.value.trim();
+    if (!name) return;
+    const id = `user-wall-${Date.now()}`;
+    saveToolPreset<WallParams>('wall', {
+      id, toolSlug: 'wall', name, params: readParams(), createdAt: new Date().toISOString(),
+    });
+    setActiveToolPresetId('wall', id);
+    nameInput.value = '';
+    refreshToolPresetSelect();
+  });
+
+  cutDownloadBtn.addEventListener('click', () => {
+    const presetName = getActiveToolPreset<WallParams>('wall').name.replace(/[^a-z0-9]+/gi, '-');
+    const date = new Date().toISOString().slice(0, 10);
+    if (!lastValidOutput) return;
+    downloadSvg(lastValidOutput.cutSvg, `wall-cutlist-${presetName}-${date}.svg`);
+  });
+
+  diagDownloadBtn.addEventListener('click', () => {
+    const presetName = getActiveToolPreset<WallParams>('wall').name.replace(/[^a-z0-9]+/gi, '-');
+    const date = new Date().toISOString().slice(0, 10);
+    if (!lastValidOutput) return;
+    downloadSvg(lastValidOutput.diagramSvg, `wall-diagram-${presetName}-${date}.svg`);
+  });
+
+  let recomputeDebounce: number | null = null;
+  function debouncedRecompute(): void {
+    if (recomputeDebounce !== null) window.clearTimeout(recomputeDebounce);
+    recomputeDebounce = window.setTimeout(() => {
+      recomputeDebounce = null;
+      recompute();
+    }, 200);
+  }
+  form.addEventListener('input', debouncedRecompute);
+  form.addEventListener('change', debouncedRecompute);
+
+  document.getElementById('reset-btn')!.addEventListener('click', () => {
+    const active = getActiveToolPreset<WallParams>('wall');
+    populateForm(active.params);
+    recompute();
+  });
+
+  loadSidebarState();
+  loadViewVisibility();
+  loadSlotOrder();
+  applySidebarState();
+  applyViewVisibility();
+
+  makeReorderable(viewGrid, {
+    onReorder: (keys) => {
+      try { localStorage.setItem(UI_KEY_ORDER, JSON.stringify(keys)); } catch {}
+      scheduleFitLayout();
+    },
+  });
+
+  refreshActivePresetDisplay();
+  refreshToolPresetSelect();
+  populateForm(getActiveToolPreset<WallParams>('wall').params);
+  recompute();
+
+  (window as unknown as { __dbg: () => unknown }).__dbg = () => ({
+    pieces3D: lastValidOutput?.pieces3D ?? [],
+  });
+
+  let themeSeq = 0;
+  const themeObserver = new MutationObserver(async () => {
+    if (!viewer3DPromise) return;
+    const mySeq = ++themeSeq;
+    const v = await viewer3DPromise;
+    if (!v || mySeq !== themeSeq) return;
+    v.setTokens(getCurrentTokens());
+  });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+</script>
+</Layout>

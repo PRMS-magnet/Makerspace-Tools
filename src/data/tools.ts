@@ -19,6 +19,6 @@ export const TOOLS: Tool[] = [
     slug: 'wall',
     name: 'Stud wall cutlist',
     blurb: 'Configurable stud + plate cut list with optional horizontal blocking.',
-    status: 'planned',
+    status: 'ready',
   },
   ];
