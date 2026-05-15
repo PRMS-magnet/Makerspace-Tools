@@ -57,7 +57,7 @@ export function computeFloorPieces3D(p: FloorParams, floorId: string): Piece3D[]
       maxSegmentLengthIn: p.maxPieceLengthIn,
       stockThicknessIn: p.stockThicknessIn,
       memberDepthIn: p.rimThicknessIn,
-      gussetWidthIn: p.joistDepthIn,
+      gussetWidthIn: p.rimThicknessIn,
       strategy: 'snapToGrid',
       preferredPositionsIn: preferredSplices,
       joint: 'butt-gusset',

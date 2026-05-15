@@ -62,7 +62,7 @@ export function buildFloorCutListPieces(p: FloorParams, floorId: string): FloorC
       maxSegmentLengthIn: p.maxPieceLengthIn,
       stockThicknessIn: p.stockThicknessIn,
       memberDepthIn: p.rimThicknessIn,
-      gussetWidthIn: p.joistDepthIn,
+      gussetWidthIn: p.rimThicknessIn,
       strategy: 'snapToGrid',
       preferredPositionsIn: preferredSplices,
       joint: 'butt-gusset',
