@@ -55,4 +55,18 @@ describe('computeWallPieces3D', () => {
     const pieces = computeWallPieces3D(DEFAULTS, 'main');
     expect(pieces.filter((p) => p.placement?.kind === 'wall-stud-mark').length).toBe(0);
   });
+
+  it('place3d emits the same plate segment count as the cut list', async () => {
+    const { buildWallCutListPieces } = await import('./cutlist');
+    const wide: WallParams = { ...DEFAULTS, widthIn: 20, maxPieceLengthIn: 8 };
+    const cutPieces = buildWallCutListPieces(wide, 'main').pieces;
+    const pieces3D = computeWallPieces3D(wide, 'main');
+    const cutBottoms = cutPieces.filter((p) => p.placement?.kind === 'wall-bottom-plate').length;
+    const cutTops = cutPieces.filter((p) => p.placement?.kind === 'wall-top-plate').length;
+    const d3Bottoms = pieces3D.filter((p) => p.placement?.kind === 'wall-bottom-plate').length;
+    const d3Tops = pieces3D.filter((p) => p.placement?.kind === 'wall-top-plate').length;
+    expect(d3Bottoms).toBe(cutBottoms);
+    expect(d3Tops).toBe(cutTops);
+    expect(d3Bottoms).toBeGreaterThan(1);
+  });
 });

@@ -52,12 +52,6 @@ export function computeFloorPieces3D(p: FloorParams, floorId: string): Piece3D[]
   const preferredSplices = joistPositions.map((x) => x + rimOverhang);
 
   for (const side of ['front', 'back'] as const) {
-    declared.push({
-      polygon: rectanglePolygon(rimTotalLen, p.rimThicknessIn),
-      op: 'cut',
-      label: `${side}-rim`,
-      placement: { kind: 'floor-rim', floorId, side },
-    });
     const split = splitPiece({
       pieceLengthIn: rimTotalLen,
       maxSegmentLengthIn: p.maxPieceLengthIn,
@@ -68,6 +62,14 @@ export function computeFloorPieces3D(p: FloorParams, floorId: string): Piece3D[]
       preferredPositionsIn: preferredSplices,
       joint: 'butt-gusset',
     });
+    for (const seg of split.segments) {
+      declared.push({
+        polygon: rectanglePolygon(seg.lengthIn, p.rimThicknessIn),
+        op: 'cut',
+        label: `${side}-rim`,
+        placement: { kind: 'floor-rim', floorId, side, segmentStartIn: seg.startIn },
+      });
+    }
     for (const j of split.joints) {
       declared.push({
         polygon: rectanglePolygon(j.gussetLengthIn, j.gussetWidthIn),

@@ -104,7 +104,7 @@ export function buildWallCutListPieces(p: WallParams, wallId: string): WallCutLi
       gussetWidthIn: p.studDepthIn,
       strategy: 'snapToGrid',
       preferredPositionsIn: preferredSplices,
-      staggerOffsetIn: layer === 1 ? geom.bayWidthIn : 0,
+      staggerOffsetIn: layer === 1 ? p.studSpacingIn : 0,
       joint: 'butt-gusset',
     });
 

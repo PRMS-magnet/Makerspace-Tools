@@ -490,7 +490,8 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
     case 'wall-bottom-plate': {
       const f = ctx.wallFrames.get(p.wallId);
       if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
-      const localOrigin: Vec3 = [-f.unit.studWidthIn / 2, 0, 0];
+      const xLocal = -f.unit.studWidthIn / 2 + (p.segmentStartIn ?? 0);
+      const localOrigin: Vec3 = [xLocal, 0, 0];
       const localU: Vec3 = [1, 0, 0];
       const localV: Vec3 = [0, 1, 0];
       const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
@@ -500,7 +501,8 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const f = ctx.wallFrames.get(p.wallId);
       if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
       const z = f.unit.heightIn - (p.layer + 1) * f.unit.topPlateHeightIn;
-      const localOrigin: Vec3 = [-f.unit.studWidthIn / 2, 0, z];
+      const xLocal = -f.unit.studWidthIn / 2 + (p.segmentStartIn ?? 0);
+      const localOrigin: Vec3 = [xLocal, 0, z];
       const localU: Vec3 = [1, 0, 0];
       const localV: Vec3 = [0, 1, 0];
       const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
@@ -545,7 +547,8 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const f = ctx.floorFrames.get(p.floorId);
       if (!f) throw new Error(`resolvePiece: no floor frame for ${p.floorId}`);
       const y = p.side === 'front' ? 0 : f.unit.depthIn - f.unit.rimThicknessIn;
-      const localOrigin: Vec3 = [-f.unit.joistThicknessIn / 2, y, 0];
+      const xLocal = -f.unit.joistThicknessIn / 2 + (p.segmentStartIn ?? 0);
+      const localOrigin: Vec3 = [xLocal, y, 0];
       const localU: Vec3 = [1, 0, 0];
       const localV: Vec3 = [0, 1, 0];
       const { origin, uAxis, vAxis } = applyFloorFrame(localOrigin, localU, localV, f);

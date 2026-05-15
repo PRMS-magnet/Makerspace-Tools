@@ -54,13 +54,6 @@ export function computeWallPieces3D(p: WallParams, wallId: string): Piece3D[] {
   const plateTotalLen = p.widthIn + p.studWidthIn;
   const preferredSplices = studPositions.map((x) => x + plateOverhang);
 
-  declared.push({
-    polygon: rectanglePolygon(plateTotalLen, p.studDepthIn),
-    op: 'cut',
-    label: 'bottom-plate',
-    placement: { kind: 'wall-bottom-plate', wallId },
-  });
-
   const bottomSplit = splitPiece({
     pieceLengthIn: plateTotalLen,
     maxSegmentLengthIn: p.maxPieceLengthIn,
@@ -71,6 +64,15 @@ export function computeWallPieces3D(p: WallParams, wallId: string): Piece3D[] {
     preferredPositionsIn: preferredSplices,
     joint: 'butt-gusset',
   });
+
+  for (const seg of bottomSplit.segments) {
+    declared.push({
+      polygon: rectanglePolygon(seg.lengthIn, p.studDepthIn),
+      op: 'cut',
+      label: 'bottom-plate',
+      placement: { kind: 'wall-bottom-plate', wallId, segmentStartIn: seg.startIn },
+    });
+  }
 
   for (const j of bottomSplit.joints) {
     declared.push({
@@ -89,12 +91,6 @@ export function computeWallPieces3D(p: WallParams, wallId: string): Piece3D[] {
   }
 
   for (let layer = 0; layer < geom.nTopPlateLayers; layer++) {
-    declared.push({
-      polygon: rectanglePolygon(plateTotalLen, p.studDepthIn),
-      op: 'cut',
-      label: 'top-plate',
-      placement: { kind: 'wall-top-plate', wallId, layer: layer as 0 | 1 },
-    });
     const topSplit = splitPiece({
       pieceLengthIn: plateTotalLen,
       maxSegmentLengthIn: p.maxPieceLengthIn,
@@ -103,9 +99,17 @@ export function computeWallPieces3D(p: WallParams, wallId: string): Piece3D[] {
       gussetWidthIn: p.studDepthIn,
       strategy: 'snapToGrid',
       preferredPositionsIn: preferredSplices,
-      staggerOffsetIn: layer === 1 ? geom.bayWidthIn : 0,
+      staggerOffsetIn: layer === 1 ? p.studSpacingIn : 0,
       joint: 'butt-gusset',
     });
+    for (const seg of topSplit.segments) {
+      declared.push({
+        polygon: rectanglePolygon(seg.lengthIn, p.studDepthIn),
+        op: 'cut',
+        label: 'top-plate',
+        placement: { kind: 'wall-top-plate', wallId, layer: layer as 0 | 1, segmentStartIn: seg.startIn },
+      });
+    }
     for (const j of topSplit.joints) {
       declared.push({
         polygon: rectanglePolygon(j.gussetLengthIn, j.gussetWidthIn),

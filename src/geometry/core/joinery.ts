@@ -132,7 +132,17 @@ export function splitPiece(input: SplitPieceInput): SplitPieceResult {
     if (strategy === 'snapToGrid' && preferredPositionsIn.length > 0) {
       const tol = input.snapToleranceIn ?? (pieceLengthIn / nSegments) * 0.5;
       const { snapped } = trySnap(equalN, preferredPositionsIn, tol);
-      candidates = snapped;
+      const deduped: number[] = [];
+      const seen = new Set<number>();
+      for (const x of snapped) {
+        const key = Math.round(x * 1e6);
+        if (!seen.has(key)) { seen.add(key); deduped.push(x); }
+      }
+      if (deduped.length < nSegments - 1) {
+        nSegments++;
+        continue;
+      }
+      candidates = deduped;
     }
     const lens = segmentLengths(candidates, pieceLengthIn);
     const maxLen = Math.max(...lens);

@@ -61,4 +61,15 @@ describe('computeFloorPieces3D', () => {
       expect(p.extrudeDepthIn).toBeCloseTo(0.514, 6);
     }
   });
+
+  it('place3d emits the same rim segment count as the cut list', async () => {
+    const { buildFloorCutListPieces } = await import('./cutlist');
+    const wide = { ...DEFAULTS, widthIn: 20, maxPieceLengthIn: 8 } as FloorParams;
+    const cutPieces = buildFloorCutListPieces(wide, 'main').pieces;
+    const pieces3D = computeFloorPieces3D(wide, 'main');
+    const cutRims = cutPieces.filter((p) => p.placement?.kind === 'floor-rim').length;
+    const d3Rims = pieces3D.filter((p) => p.placement?.kind === 'floor-rim').length;
+    expect(d3Rims).toBe(cutRims);
+    expect(d3Rims).toBeGreaterThan(2);
+  });
 });
