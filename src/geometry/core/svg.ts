@@ -1,4 +1,4 @@
-import type { Polygon, LaserOp, Vec2, PolygonWithHoles } from './types';
+import type { Polygon, LaserOp, Vec2, PolygonWithHoles, PlacedPiece } from './types';
 import { LASER_COLORS, isPolygonWithHoles } from './types';
 
 export function pathFromPolygon(p: Polygon | PolygonWithHoles, offset: Vec2 = [0, 0]): string {
@@ -42,6 +42,25 @@ export function svgDocument(opts: SvgDocumentOpts): string {
     `  </g>\n` +
     `</svg>\n`
   );
+}
+
+export function composeMultiOpCutSvg(
+  placed: PlacedPiece[],
+  totalHeightIn: number,
+  sheetWidthIn: number,
+): string {
+  const body = placed
+    .map((pp) => {
+      const stroke = LASER_COLORS[pp.op];
+      return `    <path d="${pathFromPolygon(pp.polygon, pp.offsetIn)}" stroke="${stroke}" fill="none" stroke-width="0.005"/>`;
+    })
+    .join('\n');
+  return svgDocument({
+    widthIn: sheetWidthIn,
+    heightIn: totalHeightIn,
+    body,
+    op: 'cut',
+  });
 }
 
 function escapeXml(s: string): string {

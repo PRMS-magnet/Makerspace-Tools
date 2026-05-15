@@ -1,4 +1,4 @@
-import { pathFromPolygon, svgDocument } from '../core/svg';
+import { composeMultiOpCutSvg } from '../core/svg';
 import { layoutOnSheet } from '../core/layout';
 import type { Sheet, Piece, PlacedPiece } from '../core/types';
 import type { RoofParams, RoofOutput, RoofDerived } from './types';
@@ -85,15 +85,7 @@ export function composeRoofCutSvg(
   totalHeightIn: number,
   sheetWidthIn: number,
 ): string {
-  const body = placed
-    .map((pp) => `    <path d="${pathFromPolygon(pp.polygon, pp.offsetIn)}"/>`)
-    .join('\n');
-  return svgDocument({
-    widthIn: sheetWidthIn,
-    heightIn: totalHeightIn,
-    body,
-    op: 'cut',
-  });
+  return composeMultiOpCutSvg(placed, totalHeightIn, sheetWidthIn);
 }
 
 
