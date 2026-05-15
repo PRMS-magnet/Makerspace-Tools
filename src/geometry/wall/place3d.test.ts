@@ -20,9 +20,9 @@ const DEFAULTS: WallParams = {
 };
 
 describe('computeWallPieces3D', () => {
-  it('returns nStuds + 2 plates + 12 marks for a default wall', () => {
+  it('returns nStuds + 2 plates for a default wall (engrave marks are features on plates)', () => {
     const pieces = computeWallPieces3D(DEFAULTS, 'main');
-    expect(pieces.length).toBe(6 + 2 + 12);
+    expect(pieces.length).toBe(6 + 2);
   });
 
   it('bottom plate is at z=0', () => {
@@ -44,10 +44,8 @@ describe('computeWallPieces3D', () => {
     expect(studs[0].origin[0]).toBeCloseTo(0 - 0.083 / 2, 6);
   });
 
-  it('stud-mark on bottom plate sits at z = bottomPlateHeightIn', () => {
+  it('no standalone stud-mark pieces remain', () => {
     const pieces = computeWallPieces3D(DEFAULTS, 'main');
-    const marks = pieces.filter((p) => p.placement?.kind === 'wall-stud-mark');
-    const bottomMarks = marks.filter((m) => (m.placement as { plate: string }).plate === 'bottom');
-    expect(bottomMarks[0].origin[2]).toBeCloseTo(0.083, 6);
+    expect(pieces.filter((p) => p.placement?.kind === 'wall-stud-mark').length).toBe(0);
   });
 });

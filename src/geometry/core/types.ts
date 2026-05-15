@@ -26,6 +26,7 @@ export interface Piece {
   placement?: PiecePlacement;
   extrudeDepthIn?: number;
   unitId?: string;
+  engravedFeatures?: readonly Polygon[];
 }
 
 export interface PlacedPiece extends Piece {

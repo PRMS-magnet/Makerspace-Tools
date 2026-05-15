@@ -32,17 +32,26 @@ describe('buildWallCutListPieces', () => {
     expect(pieces.filter((p) => p.placement?.kind === 'wall-top-plate').length).toBe(2);
   });
 
-  it('emits engrave marks for every stud on both plate faces (single top plate)', () => {
+  it('attaches engrave marks as features on each plate piece', () => {
     const { pieces } = buildWallCutListPieces(DEFAULTS, 'main');
-    const marks = pieces.filter((p) => p.placement?.kind === 'wall-stud-mark');
-    expect(marks.length).toBe(12);
-    expect(marks.every((p) => p.op === 'engrave')).toBe(true);
+    const bottom = pieces.find((p) => p.placement?.kind === 'wall-bottom-plate')!;
+    const top = pieces.find((p) => p.placement?.kind === 'wall-top-plate')!;
+    expect(bottom.engravedFeatures?.length).toBe(6);
+    expect(top.engravedFeatures?.length).toBe(6);
   });
 
-  it('emits engrave marks even when doubled (still 2 sets, top plate marks live on the lower layer)', () => {
+  it('only the bottom layer of a doubled top plate carries engrave marks', () => {
     const { pieces } = buildWallCutListPieces({ ...DEFAULTS, doubleTopPlate: true }, 'main');
-    const marks = pieces.filter((p) => p.placement?.kind === 'wall-stud-mark');
-    expect(marks.length).toBe(12);
+    const tops = pieces.filter((p) => p.placement?.kind === 'wall-top-plate');
+    const layer0 = tops.find((p) => (p.placement as { layer: number }).layer === 0)!;
+    const layer1 = tops.find((p) => (p.placement as { layer: number }).layer === 1)!;
+    expect(layer0.engravedFeatures?.length).toBe(6);
+    expect(layer1.engravedFeatures?.length).toBe(0);
+  });
+
+  it('no standalone stud-mark pieces remain', () => {
+    const { pieces } = buildWallCutListPieces(DEFAULTS, 'main');
+    expect(pieces.filter((p) => p.placement?.kind === 'wall-stud-mark').length).toBe(0);
   });
 
   it('emits blocks for half-mode blocking', () => {

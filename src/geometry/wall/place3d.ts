@@ -79,20 +79,5 @@ export function computeWallPieces3D(p: WallParams, wallId: string): Piece3D[] {
       placement: { kind: 'wall-block', wallId, bayIndex: row.bayIndex, rowIndex: r },
     });
   }
-  for (let i = 0; i < nStuds; i++) {
-    declared.push({
-      polygon: rectanglePolygon(p.studWidthIn, p.studDepthIn),
-      op: 'engrave',
-      label: 'stud-mark-bottom',
-      placement: { kind: 'wall-stud-mark', wallId, indexAlongWall: i, plate: 'bottom' },
-    });
-    declared.push({
-      polygon: rectanglePolygon(p.studWidthIn, p.studDepthIn),
-      op: 'engrave',
-      label: 'stud-mark-top',
-      placement: { kind: 'wall-stud-mark', wallId, indexAlongWall: i, plate: 'top' },
-    });
-  }
-
   return declared.map((piece) => resolvePiece(piece, ctx));
 }
