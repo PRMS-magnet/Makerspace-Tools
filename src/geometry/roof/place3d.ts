@@ -10,6 +10,7 @@ interface Place3DParams {
   stockThicknessIn: number;
   kerfPerSideIn: number;
   fitMode: 'press' | 'slip';
+  mortiseClearanceIn?: number;
   ridgeEndMarginIn: number;
   ridgeFaceMarginIn: number;
 }
@@ -76,6 +77,10 @@ export function computeRoofPieces3D(
   const xOffset = -houseLen / 2;
   const topMortiseCenterY = opts.ridgeFaceMarginIn + g.plumbCutLength - nominalTabHeight / 2;
   const bottomMortiseCenterY = opts.ridgeFaceMarginIn + nominalTabHeight / 2;
+  const mortiseKerf = opts.fitMode === 'slip' ? opts.kerfPerSideIn : 0;
+  const mortiseClearanceIn = opts.mortiseClearanceIn ?? 0;
+  const mortiseHalfW = t / 2 + mortiseKerf + mortiseClearanceIn;
+  const mortiseHalfH = nominalTabHeight / 2 + mortiseKerf + mortiseClearanceIn;
 
   for (let segIdx = 0; segIdx < counts.nRidgePieces; segIdx++) {
     const segStart = xOffset - opts.ridgeEndMarginIn + segIdx * counts.ridgePieceLengthIn;
@@ -85,8 +90,8 @@ export function computeRoofPieces3D(
       const rafterX = xOffset + i * p.rafterSpacingIn;
       if (rafterX < segStart - 1e-9 || rafterX > segEnd + 1e-9) continue;
       const cx = rafterX - segStart + t / 2;
-      mortises.push({ cx, cy: topMortiseCenterY, halfW: t / 2, halfH: nominalTabHeight / 2 });
-      mortises.push({ cx, cy: bottomMortiseCenterY, halfW: t / 2, halfH: nominalTabHeight / 2 });
+      mortises.push({ cx, cy: topMortiseCenterY, halfW: mortiseHalfW, halfH: mortiseHalfH });
+      mortises.push({ cx, cy: bottomMortiseCenterY, halfW: mortiseHalfW, halfH: mortiseHalfH });
     }
     const ridgePoly = buildRidgePolygon({
       lengthIn: counts.ridgePieceLengthIn,

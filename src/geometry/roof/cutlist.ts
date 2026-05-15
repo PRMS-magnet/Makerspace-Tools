@@ -58,6 +58,7 @@ export interface BuildCutListPiecesOpts {
   stockThicknessIn: number;
   kerfPerSideIn: number;
   fitMode: 'press' | 'slip';
+  mortiseClearanceIn?: number;
   ridgeEndMarginIn: number;
   ridgeFaceMarginIn: number;
 
@@ -105,8 +106,9 @@ export function buildCutListPieces(
   }
 
   const mortiseKerf = opts.fitMode === 'slip' ? opts.kerfPerSideIn : 0;
-  const mortiseWidth = opts.stockThicknessIn + 2 * mortiseKerf;
-  const mortiseHeight = nominalTabHeight + 2 * mortiseKerf;
+  const mortiseClearanceIn = opts.mortiseClearanceIn ?? 0;
+  const mortiseWidth = opts.stockThicknessIn + 2 * mortiseKerf + 2 * mortiseClearanceIn;
+  const mortiseHeight = nominalTabHeight + 2 * mortiseKerf + 2 * mortiseClearanceIn;
   const ridgeHeightZ = g.plumbCutLength + 2 * opts.ridgeFaceMarginIn;
   const xOffsetIn = (counts.nPairs - 1) * p.rafterSpacingIn / 2;
   const ridgeLeftXHouse = -xOffsetIn - opts.ridgeEndMarginIn;

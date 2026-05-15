@@ -12,6 +12,7 @@ export interface RoofCutlistOptions {
   stockThicknessIn?: number;
   kerfPerSideIn?: number;
   fitMode?: 'press' | 'slip';
+  mortiseClearanceIn?: number;
   ridgeEndMarginIn?: number;
   ridgeFaceMarginIn?: number;
   colorMode?: DiagramColorMode;
@@ -37,6 +38,7 @@ export function roofPieces(p: RoofParams, opts: RoofCutlistOptions = {}): RoofPi
   const stockThicknessIn = opts.stockThicknessIn ?? 0.125;
   const kerfPerSideIn = opts.kerfPerSideIn ?? 0.006;
   const fitMode = opts.fitMode ?? 'press';
+  const mortiseClearanceIn = opts.mortiseClearanceIn ?? 0.005;
   const ridgeEndMarginIn = opts.ridgeEndMarginIn ?? 0;
   const ridgeFaceMarginIn = opts.ridgeFaceMarginIn ?? 0.125;
 
@@ -46,6 +48,7 @@ export function roofPieces(p: RoofParams, opts: RoofCutlistOptions = {}): RoofPi
     stockThicknessIn,
     kerfPerSideIn,
     fitMode,
+    mortiseClearanceIn,
     ridgeEndMarginIn,
     ridgeFaceMarginIn,
     smartPacking: opts.smartPacking,
@@ -61,6 +64,7 @@ export function roofPieces(p: RoofParams, opts: RoofCutlistOptions = {}): RoofPi
     stockThicknessIn,
     kerfPerSideIn,
     fitMode,
+    mortiseClearanceIn,
     ridgeEndMarginIn,
     ridgeFaceMarginIn,
   });
