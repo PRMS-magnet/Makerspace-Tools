@@ -11,24 +11,27 @@ export interface WallCutListResult {
   warnings: string[];
 }
 
+const MARK_LINE_WIDTH_IN = 0.015;
+
 function studMarksOnSegment(
   studPositionsIn: readonly number[],
   segStartX: number,
   segEndX: number,
   plateOffsetX: number,
-  studWidthIn: number,
+  _studWidthIn: number,
   stockThicknessIn: number,
   plateCutHeightIn: number,
 ): Polygon[] {
   const marks: Polygon[] = [];
   const markVOffset = (plateCutHeightIn - stockThicknessIn) / 2;
+  const w = MARK_LINE_WIDTH_IN;
   for (const xCenter of studPositionsIn) {
     if (xCenter < segStartX - 1e-9 || xCenter > segEndX + 1e-9) continue;
-    const localX = xCenter - segStartX + plateOffsetX - studWidthIn / 2;
+    const localX = xCenter - segStartX + plateOffsetX - w / 2;
     marks.push([
       [localX, markVOffset],
-      [localX + studWidthIn, markVOffset],
-      [localX + studWidthIn, markVOffset + stockThicknessIn],
+      [localX + w, markVOffset],
+      [localX + w, markVOffset + stockThicknessIn],
       [localX, markVOffset + stockThicknessIn],
     ]);
   }

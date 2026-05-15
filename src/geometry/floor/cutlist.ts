@@ -11,24 +11,27 @@ export interface FloorCutListResult {
   warnings: string[];
 }
 
+const MARK_LINE_WIDTH_IN = 0.015;
+
 function joistMarksOnSegment(
   joistPositionsIn: readonly number[],
   segStartX: number,
   segEndX: number,
   rimOffsetX: number,
-  joistThicknessIn: number,
+  _joistThicknessIn: number,
   stockThicknessIn: number,
   rimCutHeightIn: number,
 ): Polygon[] {
   const marks: Polygon[] = [];
   const markVOffset = (rimCutHeightIn - stockThicknessIn) / 2;
+  const w = MARK_LINE_WIDTH_IN;
   for (const xCenter of joistPositionsIn) {
     if (xCenter < segStartX - 1e-9 || xCenter > segEndX + 1e-9) continue;
-    const localX = xCenter - segStartX + rimOffsetX - joistThicknessIn / 2;
+    const localX = xCenter - segStartX + rimOffsetX - w / 2;
     marks.push([
       [localX, markVOffset],
-      [localX + joistThicknessIn, markVOffset],
-      [localX + joistThicknessIn, markVOffset + stockThicknessIn],
+      [localX + w, markVOffset],
+      [localX + w, markVOffset + stockThicknessIn],
       [localX, markVOffset + stockThicknessIn],
     ]);
   }
