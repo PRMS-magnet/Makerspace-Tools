@@ -1,6 +1,7 @@
 import type { Piece, Piece3D } from './types';
 import type { Building, DormerGablePlacement, DormerShedPlacement } from '../building/types';
 import type { RoofUnit } from '../roof/types';
+import type { WallUnit, BlockRow } from '../wall/types';
 import { computeRoofGeometry } from '../roof/compute';
 import { computeRoofCounts } from '../roof/cutlist';
 import type { RoofCutlistOptions } from '../roof';
@@ -44,10 +45,22 @@ export interface ShedDormerFrame {
 
 export type DormerFrame = GableDormerFrame | ShedDormerFrame;
 
+export interface WallFrame {
+  unit: WallUnit;
+  translation: Vec3;
+  rotationZRadians: number;
+  studPositionsIn: number[];
+  nTopPlateLayers: number;
+  interPlateHeightIn: number;
+  bayWidthIn: number;
+  blockRows: ReadonlyArray<BlockRow>;
+}
+
 export interface ResolveContext {
   building: Building;
   unitFrames: Map<string, UnitFrame>;
   dormerFrames: Map<string, DormerFrame>;
+  wallFrames: Map<string, WallFrame>;
 }
 
 function unitPlacementFor(b: Building, unitIndex: number): { translation: Vec3; rotationZRadians: number } {
@@ -180,7 +193,26 @@ export function buildContext(b: Building, opts: RoofCutlistOptions): ResolveCont
     }
   }
 
-  return { building: b, unitFrames, dormerFrames };
+  return { building: b, unitFrames, dormerFrames, wallFrames: new Map() };
+}
+
+function applyWallFrame(
+  localOrigin: Vec3,
+  localU: Vec3,
+  localV: Vec3,
+  frame: WallFrame,
+): { origin: Vec3; uAxis: Vec3; vAxis: Vec3 } {
+  const angle = frame.rotationZRadians;
+  if (angle === 0 &&
+      frame.translation[0] === 0 &&
+      frame.translation[1] === 0 &&
+      frame.translation[2] === 0) {
+    return { origin: localOrigin, uAxis: localU, vAxis: localV };
+  }
+  const origin = add3(rotateZ(localOrigin, angle), frame.translation);
+  const uAxis = rotateZ(localU, angle);
+  const vAxis = rotateZ(localV, angle);
+  return { origin, uAxis, vAxis };
 }
 
 const RAFTER_U: Vec3 = [0, 1, 0];
@@ -424,12 +456,60 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
         extrudeDepthIn: piece.extrudeDepthIn ?? f.stockThicknessIn,
       };
     }
-    case 'wall-stud':
-    case 'wall-top-plate':
-    case 'wall-bottom-plate':
-    case 'wall-block':
-    case 'wall-stud-mark':
-      throw new Error(`resolvePiece: kind '${p.kind}' is not yet implemented (Task 7)`);
+    case 'wall-bottom-plate': {
+      const f = ctx.wallFrames.get(p.wallId);
+      if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
+      const localOrigin: Vec3 = [0, 0, 0];
+      const localU: Vec3 = [1, 0, 0];
+      const localV: Vec3 = [0, 1, 0];
+      const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
+      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.bottomPlateHeightIn };
+    }
+    case 'wall-top-plate': {
+      const f = ctx.wallFrames.get(p.wallId);
+      if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
+      const z = f.unit.heightIn - (p.layer + 1) * f.unit.topPlateHeightIn;
+      const localOrigin: Vec3 = [0, 0, z];
+      const localU: Vec3 = [1, 0, 0];
+      const localV: Vec3 = [0, 1, 0];
+      const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
+      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.topPlateHeightIn };
+    }
+    case 'wall-stud': {
+      const f = ctx.wallFrames.get(p.wallId);
+      if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
+      const x = f.studPositionsIn[p.indexAlongWall] - f.unit.studWidthIn / 2;
+      const localOrigin: Vec3 = [x, 0, f.unit.bottomPlateHeightIn];
+      const localU: Vec3 = [1, 0, 0];
+      const localV: Vec3 = [0, 1, 0];
+      const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
+      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.interPlateHeightIn };
+    }
+    case 'wall-block': {
+      const f = ctx.wallFrames.get(p.wallId);
+      if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
+      const row = f.blockRows[p.rowIndex];
+      const x = row.spanFullWidth ? 0 : f.studPositionsIn[row.bayIndex] + f.unit.studWidthIn / 2;
+      const z = f.unit.bottomPlateHeightIn + row.heightFromBottomPlateIn;
+      const localOrigin: Vec3 = [x, 0, z];
+      const localU: Vec3 = [1, 0, 0];
+      const localV: Vec3 = [0, 1, 0];
+      const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
+      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.blockingThicknessIn };
+    }
+    case 'wall-stud-mark': {
+      const f = ctx.wallFrames.get(p.wallId);
+      if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
+      const x = f.studPositionsIn[p.indexAlongWall] - f.unit.studWidthIn / 2;
+      const z = p.plate === 'bottom'
+        ? f.unit.bottomPlateHeightIn
+        : f.unit.heightIn - f.nTopPlateLayers * f.unit.topPlateHeightIn;
+      const localOrigin: Vec3 = [x, 0, z];
+      const localU: Vec3 = [1, 0, 0];
+      const localV: Vec3 = [0, 1, 0];
+      const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
+      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: 0 };
+    }
     case 'unit-top-plate':
     case 'cross-gable-trimmer':
       throw new Error(`resolvePiece: kind '${p.kind}' is not yet implemented (reserved for later cycle)`);
