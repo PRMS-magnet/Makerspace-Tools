@@ -21,4 +21,10 @@ export const TOOLS: Tool[] = [
     blurb: 'Configurable stud + plate cut list with optional horizontal blocking.',
     status: 'ready',
   },
+  {
+    slug: 'floor',
+    name: 'Stud floor cutlist',
+    blurb: 'Joist + rim cut list with optional mid-span blocking.',
+    status: 'ready',
+  },
   ];

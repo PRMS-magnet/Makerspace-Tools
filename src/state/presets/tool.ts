@@ -1,6 +1,7 @@
 import { load, save } from './storage';
 import type { RoofParams } from '../../geometry/roof/types';
 import type { WallParams } from '../../geometry/wall/types';
+import type { FloorParams } from '../../geometry/floor/types';
 
 export interface ToolPreset<P> {
   id: string;
@@ -54,6 +55,29 @@ export const BUILTIN_WALL_PRESETS: ToolPreset<WallParams>[] = [
   { id: 'wall-1-18-tall', toolSlug: 'wall', name: '1:18 tall wall (10 ft)', params: { ...WALL_DEFAULT, heightIn: 6.67, blocking: { mode: 'half', heightFraction: 0.5 } }, createdAt: '2026-05-15T00:00:00Z', builtin: true },
 ];
 
+const FLOOR_DEFAULT: FloorParams = {
+  widthIn: 8.0,
+  depthIn: 6.67,
+  joistSpacingIn: 0.889,
+  joistThicknessIn: 0.083,
+  joistDepthIn: 0.514,
+  nJoistsOverride: null,
+  rimThicknessIn: 0.125,
+  blocking: { mode: 'none' },
+  blockingThicknessIn: 0.083,
+  stockThicknessIn: 0.125,
+  sheetWidthIn: 12.0,
+  maxPieceLengthIn: 12.0,
+  marginIn: 0.12,
+  pieceSpacingIn: 0.06,
+};
+
+export const BUILTIN_FLOOR_PRESETS: ToolPreset<FloorParams>[] = [
+  { id: 'floor-1-18-default', toolSlug: 'floor', name: '1:18 floor (2x10 joists)', params: FLOOR_DEFAULT, createdAt: '2026-05-15T00:00:00Z', builtin: true },
+  { id: 'floor-1-18-2x8', toolSlug: 'floor', name: '1:18 floor (2x8 joists, short span)', params: { ...FLOOR_DEFAULT, joistDepthIn: 0.403, depthIn: 5.33 }, createdAt: '2026-05-15T00:00:00Z', builtin: true },
+  { id: 'floor-1-18-blocked', toolSlug: 'floor', name: '1:18 floor with mid-span blocking', params: { ...FLOOR_DEFAULT, blocking: { mode: 'half', positionFraction: 0.5 } }, createdAt: '2026-05-15T00:00:00Z', builtin: true },
+];
+
 const isToolPreset = (x: unknown): x is ToolPreset<unknown> => {
   if (typeof x !== 'object' || x === null) return false;
   const o = x as Record<string, unknown>;
@@ -69,6 +93,7 @@ const isToolPreset = (x: unknown): x is ToolPreset<unknown> => {
 function builtinsFor(slug: string): ToolPreset<unknown>[] {
   if (slug === 'roof') return BUILTIN_ROOF_PRESETS as ToolPreset<unknown>[];
   if (slug === 'wall') return BUILTIN_WALL_PRESETS as ToolPreset<unknown>[];
+  if (slug === 'floor') return BUILTIN_FLOOR_PRESETS as ToolPreset<unknown>[];
   return [];
 }
 
