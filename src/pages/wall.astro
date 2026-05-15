@@ -256,6 +256,7 @@ const previewViews = [
 
 <script>
   import { wallPieces, composeWallCutSvg } from '../geometry/wall';
+  import { packInWorker } from '../geometry/core/packing';
   import type { WallParams, BlockingSpec } from '../geometry/wall';
   import { bboxLayoutOnSheet } from '../geometry/core/packing/bbox-fallback';
   import { getActiveMachine } from '../state/presets/machine';
@@ -297,6 +298,9 @@ const previewViews = [
     pieces3D: import('../geometry/core/types').Piece3D[];
   };
   let lastValidOutput: WallOutput | null = null;
+  let realtimePackAbort: AbortController | null = null;
+  let lastTightHeightIn: number | null = null;
+  let recomputeSeq = 0;
 
   function readBlockingSpec(): BlockingSpec {
     const mode = blockingModeSel.value as BlockingSpec['mode'];
@@ -541,6 +545,51 @@ const previewViews = [
     renderWarnings(out.warnings);
     scheduleFitLayout();
     void updateViewer3D();
+
+    if (realtimePackAbort) realtimePackAbort.abort();
+    realtimePackAbort = new AbortController();
+    const signal = realtimePackAbort.signal;
+
+    const stableMinHeightIn = Math.min(lastTightHeightIn ?? bbox.totalHeightIn, bbox.totalHeightIn);
+    const seq = ++recomputeSeq;
+    let pendingPartial: { placed: import('../geometry/core/types').PlacedPiece[]; totalHeightIn: number } | null = null;
+    let partialRafScheduled = false;
+    const flushPartial = () => {
+      partialRafScheduled = false;
+      if (!pendingPartial || seq !== recomputeSeq || !cutListVisible()) return;
+      const h = Math.max(pendingPartial.totalHeightIn, stableMinHeightIn);
+      const svg = composeWallCutSvg(pendingPartial.placed, h, p.sheetWidthIn);
+      if (cutListVisible()) cutSlot.innerHTML = svg;
+      if (lastValidOutput) lastValidOutput = { ...lastValidOutput, cutSvg: svg };
+      pendingPartial = null;
+    };
+
+    void packInWorker(piecesResult.pieces, piecesResult.sheet, {
+      effort: 'realtime',
+      chunkSize: 4,
+      signal,
+      onPartial: (partial) => {
+        if (seq !== recomputeSeq) return;
+        pendingPartial = partial;
+        if (!partialRafScheduled) {
+          partialRafScheduled = true;
+          requestAnimationFrame(flushPartial);
+        }
+      },
+    }).then((res) => {
+      if (seq !== recomputeSeq) return;
+      if (res.packer !== 'bbox-fallback') {
+        const tighter = composeWallCutSvg(res.placed, res.totalHeightIn, p.sheetWidthIn);
+        if (cutListVisible()) cutSlot.innerHTML = tighter;
+        if (lastValidOutput) lastValidOutput = { ...lastValidOutput, cutSvg: tighter, warnings: [...piecesResult.warnings, ...res.warnings] };
+        lastTightHeightIn = res.totalHeightIn;
+      }
+      renderWarnings([...piecesResult.warnings, ...res.warnings]);
+    }).catch((err) => {
+      if ((err as Error)?.name === 'AbortError') return;
+      console.error('pack worker error', err);
+      appendWarning(warningsEl, 'smart packing failed; using the simple layout', true);
+    });
   }
 
   const MIN_COL_WIDTH_PX = 380;
