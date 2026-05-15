@@ -36,7 +36,7 @@ const WALL_DEFAULT: WallParams = {
   heightIn: 5.33,
   studSpacingIn: 0.889,
   studWidthIn: 0.125,
-  studDepthIn: 0.194,
+  studDepthIn: 0.125,
   nStudsOverride: null,
   topPlateHeightIn: 0.125,
   bottomPlateHeightIn: 0.125,
