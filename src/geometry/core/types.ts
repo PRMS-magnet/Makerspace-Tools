@@ -109,4 +109,9 @@ export type PiecePlacement =
   | { kind: 'dormer-rafter-plate'; dormerId: string; side: 'east' | 'west' }
   | { kind: 'dormer-cali-valley';  dormerId: string; side: 'east' | 'west' }
   | { kind: 'shed-dormer-cripple'; dormerId: string; indexAlongRidge: number }
-  | { kind: 'shed-dormer-header';  dormerId: string };
+  | { kind: 'shed-dormer-header';  dormerId: string }
+  | { kind: 'wall-stud';         wallId: string; indexAlongWall: number }
+  | { kind: 'wall-top-plate';    wallId: string; layer: 0 | 1 }
+  | { kind: 'wall-bottom-plate'; wallId: string }
+  | { kind: 'wall-block';        wallId: string; bayIndex: number; rowIndex: number }
+  | { kind: 'wall-stud-mark';    wallId: string; indexAlongWall: number; plate: 'top' | 'bottom' };

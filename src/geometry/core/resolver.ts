@@ -424,6 +424,12 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
         extrudeDepthIn: piece.extrudeDepthIn ?? f.stockThicknessIn,
       };
     }
+    case 'wall-stud':
+    case 'wall-top-plate':
+    case 'wall-bottom-plate':
+    case 'wall-block':
+    case 'wall-stud-mark':
+      throw new Error(`resolvePiece: kind '${p.kind}' is not yet implemented (Task 7)`);
     case 'unit-top-plate':
     case 'cross-gable-trimmer':
       throw new Error(`resolvePiece: kind '${p.kind}' is not yet implemented (reserved for later cycle)`);
