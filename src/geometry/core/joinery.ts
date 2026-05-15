@@ -2,6 +2,181 @@ import type { SplitParams, SplitResult, SplitJoint, Polygon, PolygonWithHoles, V
 import { isPolygonWithHoles } from './types';
 
 const DEFAULT_LAP_MULTIPLIER = 3;
+const DEFAULT_GUSSET_LENGTH_MULTIPLIER = 4;
+
+export type SpliceStrategy = 'equalN' | 'snapToGrid';
+export type SpliceJointKind = 'butt-gusset' | 'none';
+
+export interface ButtGussetSplice {
+  kind: 'butt-gusset';
+  positionIn: number;
+  gussetLengthIn: number;
+  gussetWidthIn: number;
+  gussetSides: 1 | 2;
+}
+
+export type SpliceJoint = ButtGussetSplice;
+
+export interface SpliceSegment {
+  index: number;
+  startIn: number;
+  endIn: number;
+  lengthIn: number;
+}
+
+export interface SplitPieceInput {
+  pieceLengthIn: number;
+  maxSegmentLengthIn: number;
+  stockThicknessIn: number;
+  memberDepthIn?: number;
+  gussetWidthIn?: number;
+  strategy?: SpliceStrategy;
+  preferredPositionsIn?: readonly number[];
+  snapToleranceIn?: number;
+  staggerOffsetIn?: number;
+  joint?: SpliceJointKind;
+  gussetLengthMultiplier?: number;
+  gussetSides?: 1 | 2;
+}
+
+export interface SplitPieceResult {
+  segments: SpliceSegment[];
+  splicePositionsIn: number[];
+  joints: SpliceJoint[];
+}
+
+function snapToNearest(target: number, candidates: readonly number[]): number {
+  let best = candidates[0];
+  let bestDist = Math.abs(target - best);
+  for (let i = 1; i < candidates.length; i++) {
+    const d = Math.abs(target - candidates[i]);
+    if (d < bestDist) {
+      best = candidates[i];
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
+function feasibleEqualN(
+  pieceLengthIn: number,
+  nSegments: number,
+  staggerOffsetIn: number,
+): number[] {
+  const seg = pieceLengthIn / nSegments;
+  const out: number[] = [];
+  for (let i = 1; i < nSegments; i++) {
+    let p = i * seg + staggerOffsetIn;
+    if (p <= 0 || p >= pieceLengthIn) p = i * seg;
+    out.push(p);
+  }
+  return out;
+}
+
+function trySnap(
+  positions: readonly number[],
+  preferred: readonly number[],
+  tolerance: number,
+): { snapped: number[]; allWithinTolerance: boolean } {
+  if (preferred.length === 0) return { snapped: [...positions], allWithinTolerance: false };
+  let allWithin = true;
+  const snapped: number[] = [];
+  for (const p of positions) {
+    const s = snapToNearest(p, preferred);
+    if (Math.abs(s - p) > tolerance + 1e-9) allWithin = false;
+    snapped.push(s);
+  }
+  return { snapped, allWithinTolerance: allWithin };
+}
+
+function segmentLengths(splices: readonly number[], totalIn: number): number[] {
+  const lens: number[] = [];
+  let prev = 0;
+  for (const s of splices) {
+    lens.push(s - prev);
+    prev = s;
+  }
+  lens.push(totalIn - prev);
+  return lens;
+}
+
+export function splitPiece(input: SplitPieceInput): SplitPieceResult {
+  const {
+    pieceLengthIn,
+    maxSegmentLengthIn,
+    stockThicknessIn,
+    memberDepthIn,
+    strategy = 'equalN',
+    preferredPositionsIn = [],
+    staggerOffsetIn = 0,
+    joint = 'butt-gusset',
+    gussetLengthMultiplier = DEFAULT_GUSSET_LENGTH_MULTIPLIER,
+    gussetSides = 1,
+  } = input;
+
+  if (pieceLengthIn <= maxSegmentLengthIn + 1e-9) {
+    return {
+      segments: [{ index: 0, startIn: 0, endIn: pieceLengthIn, lengthIn: pieceLengthIn }],
+      splicePositionsIn: [],
+      joints: [],
+    };
+  }
+
+  const nMin = Math.ceil(pieceLengthIn / maxSegmentLengthIn);
+  let nSegments = nMin;
+  let splices: number[] = [];
+
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const equalN = feasibleEqualN(pieceLengthIn, nSegments, staggerOffsetIn);
+    let candidates = equalN;
+    if (strategy === 'snapToGrid' && preferredPositionsIn.length > 0) {
+      const tol = input.snapToleranceIn ?? (pieceLengthIn / nSegments) * 0.5;
+      const { snapped } = trySnap(equalN, preferredPositionsIn, tol);
+      candidates = snapped;
+    }
+    const lens = segmentLengths(candidates, pieceLengthIn);
+    const maxLen = Math.max(...lens);
+    if (maxLen <= maxSegmentLengthIn + 1e-9) {
+      splices = candidates;
+      break;
+    }
+    nSegments++;
+  }
+
+  if (splices.length === 0) {
+    splices = feasibleEqualN(pieceLengthIn, nSegments, 0);
+  }
+
+  splices.sort((a, b) => a - b);
+
+  const lens = segmentLengths(splices, pieceLengthIn);
+  const segments: SpliceSegment[] = [];
+  {
+    let cursor = 0;
+    for (let i = 0; i < lens.length; i++) {
+      segments.push({ index: i, startIn: cursor, endIn: cursor + lens[i], lengthIn: lens[i] });
+      cursor += lens[i];
+    }
+  }
+
+  const joints: SpliceJoint[] = [];
+  if (joint === 'butt-gusset' && splices.length > 0) {
+    const basisIn = memberDepthIn ?? stockThicknessIn;
+    const gussetLengthIn = gussetLengthMultiplier * basisIn;
+    const gussetWidth = input.gussetWidthIn ?? basisIn;
+    for (const positionIn of splices) {
+      joints.push({
+        kind: 'butt-gusset',
+        positionIn,
+        gussetLengthIn,
+        gussetWidthIn: gussetWidth,
+        gussetSides,
+      });
+    }
+  }
+
+  return { segments, splicePositionsIn: splices, joints };
+}
 
 export function splitForLength(p: SplitParams): SplitResult {
   const { pieceLengthIn, maxPieceLengthIn, stockThicknessIn } = p;

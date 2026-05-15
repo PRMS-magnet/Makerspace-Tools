@@ -4,6 +4,7 @@ import { effectiveRimCutHeight } from './types';
 import { computeFloorGeometry, computeJoistPositions } from './compute';
 import { resolveBlockingRows } from './blocking';
 import { rectanglePolygon } from './polygons';
+import { splitPiece, type SpliceJoint } from '../core/joinery';
 
 export interface FloorCutListResult {
   pieces: Piece[];
@@ -34,6 +35,10 @@ function joistMarksOnSegment(
   return marks;
 }
 
+function gussetPolygon(j: SpliceJoint): Polygon {
+  return rectanglePolygon(j.gussetLengthIn, j.gussetWidthIn);
+}
+
 export function buildFloorCutListPieces(p: FloorParams, floorId: string): FloorCutListResult {
   const pieces: Piece[] = [];
   const warnings: string[] = [];
@@ -46,29 +51,57 @@ export function buildFloorCutListPieces(p: FloorParams, floorId: string): FloorC
 
   const rimOverhang = p.joistThicknessIn / 2;
   const rimTotalLen = p.widthIn + p.joistThicknessIn;
-  const nRimSegs = Math.max(1, Math.ceil(rimTotalLen / p.maxPieceLengthIn));
-  const rimSegLen = rimTotalLen / nRimSegs;
-
+  const preferredSplices = joistPositions.map((x) => x + rimOverhang);
   const rimCutH = effectiveRimCutHeight(p.rimThicknessIn, p.stockThicknessIn);
 
+  let firstSplitForWarning: ReturnType<typeof splitPiece> | null = null;
+
   for (const side of ['front', 'back'] as const) {
-    for (let s = 0; s < nRimSegs; s++) {
-      const segStart = s * rimSegLen - rimOverhang;
-      const segEnd = segStart + rimSegLen;
+    const split = splitPiece({
+      pieceLengthIn: rimTotalLen,
+      maxSegmentLengthIn: p.maxPieceLengthIn,
+      stockThicknessIn: p.stockThicknessIn,
+      memberDepthIn: p.rimThicknessIn,
+      gussetWidthIn: p.joistDepthIn,
+      strategy: 'snapToGrid',
+      preferredPositionsIn: preferredSplices,
+      joint: 'butt-gusset',
+    });
+    if (firstSplitForWarning === null) firstSplitForWarning = split;
+
+    for (const seg of split.segments) {
+      const segStartX = seg.startIn - rimOverhang;
+      const segEndX = seg.endIn - rimOverhang;
       pieces.push({
-        polygon: rectanglePolygon(rimSegLen, rimCutH),
+        polygon: rectanglePolygon(seg.lengthIn, rimCutH),
         op: 'cut',
         label: `${side}-rim`,
         placement: { kind: 'floor-rim', floorId, side },
         engravedFeatures: joistMarksOnSegment(
           joistPositions,
-          segStart,
-          segEnd,
+          segStartX,
+          segEndX,
           0,
           p.joistThicknessIn,
           p.stockThicknessIn,
           rimCutH,
         ),
+      });
+    }
+
+    for (const j of split.joints) {
+      pieces.push({
+        polygon: gussetPolygon(j),
+        op: 'cut',
+        label: 'splice-gusset',
+        placement: {
+          kind: 'splice-gusset',
+          hostKind: 'floor-rim',
+          hostId: floorId,
+          hostSubKey: side,
+          positionAlongIn: j.positionIn - j.gussetLengthIn / 2,
+          spliceFace: 'top',
+        },
       });
     }
   }
@@ -93,8 +126,9 @@ export function buildFloorCutListPieces(p: FloorParams, floorId: string): FloorC
     });
   }
 
-  if (rimTotalLen > p.maxPieceLengthIn) {
-    warnings.push(`Floor rim length ${rimTotalLen.toFixed(2)} in exceeds max piece length; rims split into ${nRimSegs} segments`);
+  if (rimTotalLen > p.maxPieceLengthIn && firstSplitForWarning) {
+    const nSegs = firstSplitForWarning.segments.length;
+    warnings.push(`Floor rim length ${rimTotalLen.toFixed(2)} in exceeds max piece length; rims split into ${nSegs} segments with ${firstSplitForWarning.joints.length} butt-gusset splice(s) per rim`);
   }
 
   return { pieces, warnings };

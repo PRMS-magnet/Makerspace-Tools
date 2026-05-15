@@ -1,10 +1,10 @@
 import type { Piece, Piece3D } from '../core/types';
 import type { WallParams } from './types';
-import { effectivePlateCutHeight } from './types';
 import { computeWallGeometry, computeStudPositions } from './compute';
 import { resolveBlockingRows } from './blocking';
 import { rectanglePolygon } from './polygons';
 import { resolvePiece, type ResolveContext, type WallFrame } from '../core/resolver';
+import { splitPiece } from '../core/joinery';
 
 export function computeWallPieces3D(p: WallParams, wallId: string): Piece3D[] {
   const geom = computeWallGeometry(p);
@@ -50,13 +50,44 @@ export function computeWallPieces3D(p: WallParams, wallId: string): Piece3D[] {
 
   const declared: Piece[] = [];
 
+  const plateOverhang = p.studWidthIn / 2;
   const plateTotalLen = p.widthIn + p.studWidthIn;
+  const preferredSplices = studPositions.map((x) => x + plateOverhang);
+
   declared.push({
     polygon: rectanglePolygon(plateTotalLen, p.studDepthIn),
     op: 'cut',
     label: 'bottom-plate',
     placement: { kind: 'wall-bottom-plate', wallId },
   });
+
+  const bottomSplit = splitPiece({
+    pieceLengthIn: plateTotalLen,
+    maxSegmentLengthIn: p.maxPieceLengthIn,
+    stockThicknessIn: p.stockThicknessIn,
+    memberDepthIn: p.bottomPlateHeightIn,
+    gussetWidthIn: p.studDepthIn,
+    strategy: 'snapToGrid',
+    preferredPositionsIn: preferredSplices,
+    joint: 'butt-gusset',
+  });
+
+  for (const j of bottomSplit.joints) {
+    declared.push({
+      polygon: rectanglePolygon(j.gussetLengthIn, j.gussetWidthIn),
+      op: 'cut',
+      label: 'splice-gusset',
+      placement: {
+        kind: 'splice-gusset',
+        hostKind: 'wall-plate',
+        hostId: wallId,
+        hostSubKey: 'bottom',
+        positionAlongIn: j.positionIn - j.gussetLengthIn / 2,
+        spliceFace: 'top',
+      },
+    });
+  }
+
   for (let layer = 0; layer < geom.nTopPlateLayers; layer++) {
     declared.push({
       polygon: rectanglePolygon(plateTotalLen, p.studDepthIn),
@@ -64,7 +95,34 @@ export function computeWallPieces3D(p: WallParams, wallId: string): Piece3D[] {
       label: 'top-plate',
       placement: { kind: 'wall-top-plate', wallId, layer: layer as 0 | 1 },
     });
+    const topSplit = splitPiece({
+      pieceLengthIn: plateTotalLen,
+      maxSegmentLengthIn: p.maxPieceLengthIn,
+      stockThicknessIn: p.stockThicknessIn,
+      memberDepthIn: p.topPlateHeightIn,
+      gussetWidthIn: p.studDepthIn,
+      strategy: 'snapToGrid',
+      preferredPositionsIn: preferredSplices,
+      staggerOffsetIn: layer === 1 ? geom.bayWidthIn : 0,
+      joint: 'butt-gusset',
+    });
+    for (const j of topSplit.joints) {
+      declared.push({
+        polygon: rectanglePolygon(j.gussetLengthIn, j.gussetWidthIn),
+        op: 'cut',
+        label: 'splice-gusset',
+        placement: {
+          kind: 'splice-gusset',
+          hostKind: 'wall-plate',
+          hostId: wallId,
+          hostSubKey: `top:${layer}`,
+          positionAlongIn: j.positionIn - j.gussetLengthIn / 2,
+          spliceFace: 'top',
+        },
+      });
+    }
   }
+
   for (let i = 0; i < nStuds; i++) {
     declared.push({
       polygon: rectanglePolygon(p.studWidthIn, p.studDepthIn),

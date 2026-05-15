@@ -573,6 +573,39 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const { origin, uAxis, vAxis } = applyFloorFrame(localOrigin, localU, localV, f);
       return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.joistDepthIn };
     }
+    case 'splice-gusset': {
+      if (p.hostKind === 'wall-plate') {
+        const f = ctx.wallFrames.get(p.hostId);
+        if (!f) throw new Error(`resolvePiece: no wall frame for ${p.hostId}`);
+        const isTopLayer = p.hostSubKey.startsWith('top:');
+        const layer = isTopLayer ? Number(p.hostSubKey.split(':')[1] ?? '0') : 0;
+        const plateHeightIn = isTopLayer ? f.unit.topPlateHeightIn : f.unit.bottomPlateHeightIn;
+        const plateBottomZ = isTopLayer
+          ? f.unit.heightIn - (layer + 1) * f.unit.topPlateHeightIn
+          : 0;
+        const plateTopZ = plateBottomZ + plateHeightIn;
+        const stock = f.unit.stockThicknessIn;
+        const z = p.spliceFace === 'top' ? plateTopZ : plateBottomZ - stock;
+        const xLocal = -f.unit.studWidthIn / 2 + p.positionAlongIn;
+        const localOrigin: Vec3 = [xLocal, 0, z];
+        const localU: Vec3 = [1, 0, 0];
+        const localV: Vec3 = [0, 1, 0];
+        const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
+        return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: stock };
+      }
+      const f = ctx.floorFrames.get(p.hostId);
+      if (!f) throw new Error(`resolvePiece: no floor frame for ${p.hostId}`);
+      const isFrontRim = p.hostSubKey === 'front';
+      const yRim = isFrontRim ? 0 : f.unit.depthIn - f.unit.rimThicknessIn;
+      const stock = f.unit.stockThicknessIn;
+      const z = p.spliceFace === 'top' ? f.unit.joistDepthIn : -stock;
+      const xLocal = -f.unit.joistThicknessIn / 2 + p.positionAlongIn;
+      const localOrigin: Vec3 = [xLocal, yRim, z];
+      const localU: Vec3 = [1, 0, 0];
+      const localV: Vec3 = [0, 1, 0];
+      const { origin, uAxis, vAxis } = applyFloorFrame(localOrigin, localU, localV, f);
+      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: stock };
+    }
     case 'unit-top-plate':
     case 'cross-gable-trimmer':
       throw new Error(`resolvePiece: kind '${p.kind}' is not yet implemented (reserved for later cycle)`);

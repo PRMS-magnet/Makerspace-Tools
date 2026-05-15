@@ -118,4 +118,5 @@ export type PiecePlacement =
   | { kind: 'wall-stud-mark';    wallId: string; indexAlongWall: number; plate: 'top' | 'bottom' }
   | { kind: 'floor-joist';       floorId: string; indexAlongWidth: number }
   | { kind: 'floor-rim';         floorId: string; side: 'front' | 'back' }
-  | { kind: 'floor-block';       floorId: string; bayIndex: number; rowIndex: number };
+  | { kind: 'floor-block';       floorId: string; bayIndex: number; rowIndex: number }
+  | { kind: 'splice-gusset';     hostKind: 'wall-plate' | 'floor-rim'; hostId: string; hostSubKey: string; positionAlongIn: number; spliceFace: 'top' | 'bottom' };

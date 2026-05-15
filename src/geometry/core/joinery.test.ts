@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { splitForLength, applyTenon, applyMortise } from './joinery';
+import { splitForLength, splitPiece, applyTenon, applyMortise } from './joinery';
 import type { Polygon, PolygonWithHoles } from './types';
 
 describe('splitForLength', () => {
@@ -87,6 +87,120 @@ describe('splitForLength', () => {
         (L, M, T) => {
           const r = splitForLength({ pieceLengthIn: L, maxPieceLengthIn: M, stockThicknessIn: T });
           expect(r.segmentLengthIn).toBeLessThanOrEqual(M + 1e-9);
+        }
+      )
+    );
+  });
+});
+
+describe('splitPiece', () => {
+  it('returns a single full-length segment when piece fits in max', () => {
+    const r = splitPiece({ pieceLengthIn: 8, maxSegmentLengthIn: 12, stockThicknessIn: 0.125 });
+    expect(r.segments.length).toBe(1);
+    expect(r.segments[0].lengthIn).toBe(8);
+    expect(r.splicePositionsIn).toEqual([]);
+    expect(r.joints).toEqual([]);
+  });
+
+  it('equalN strategy splits into ceil(L/max) segments of equal length', () => {
+    const r = splitPiece({ pieceLengthIn: 20, maxSegmentLengthIn: 8, stockThicknessIn: 0.125, strategy: 'equalN' });
+    expect(r.segments.length).toBe(3);
+    for (const s of r.segments) expect(s.lengthIn).toBeCloseTo(20 / 3, 6);
+  });
+
+  it('every segment is no longer than maxSegmentLengthIn', () => {
+    fc.assert(
+      fc.property(
+        fc.double({ min: 1, max: 100, noNaN: true }),
+        fc.double({ min: 1, max: 100, noNaN: true }),
+        (L, M) => {
+          const r = splitPiece({ pieceLengthIn: L, maxSegmentLengthIn: M, stockThicknessIn: 0.125 });
+          for (const s of r.segments) expect(s.lengthIn).toBeLessThanOrEqual(M + 1e-6);
+        }
+      )
+    );
+  });
+
+  it('emits butt-gusset joints by default at each splice', () => {
+    const r = splitPiece({ pieceLengthIn: 20, maxSegmentLengthIn: 8, stockThicknessIn: 0.125 });
+    expect(r.joints.length).toBe(r.splicePositionsIn.length);
+    expect(r.joints.length).toBe(r.segments.length - 1);
+    for (const j of r.joints) {
+      expect(j.kind).toBe('butt-gusset');
+      expect(j.gussetLengthIn).toBeGreaterThan(0);
+    }
+  });
+
+  it('joint=none suppresses joint emission', () => {
+    const r = splitPiece({ pieceLengthIn: 20, maxSegmentLengthIn: 8, stockThicknessIn: 0.125, joint: 'none' });
+    expect(r.splicePositionsIn.length).toBe(2);
+    expect(r.joints.length).toBe(0);
+  });
+
+  it('snapToGrid pulls splices to the nearest preferred position', () => {
+    const r = splitPiece({
+      pieceLengthIn: 20,
+      maxSegmentLengthIn: 8,
+      stockThicknessIn: 0.125,
+      strategy: 'snapToGrid',
+      preferredPositionsIn: [0, 4, 8, 12, 16, 20],
+    });
+    for (const p of r.splicePositionsIn) {
+      const dist = Math.min(...[0, 4, 8, 12, 16, 20].map((q) => Math.abs(q - p)));
+      expect(dist).toBeLessThan(0.01);
+    }
+  });
+
+  it('snapToGrid bumps segment count if snap would exceed maxLen', () => {
+    const r = splitPiece({
+      pieceLengthIn: 20,
+      maxSegmentLengthIn: 8,
+      stockThicknessIn: 0.125,
+      strategy: 'snapToGrid',
+      preferredPositionsIn: [0, 4, 8, 12, 16, 20],
+    });
+    for (const s of r.segments) expect(s.lengthIn).toBeLessThanOrEqual(8 + 1e-6);
+  });
+
+  it('staggerOffset shifts splice positions for layered members', () => {
+    const a = splitPiece({ pieceLengthIn: 20, maxSegmentLengthIn: 8, stockThicknessIn: 0.125 });
+    const b = splitPiece({ pieceLengthIn: 20, maxSegmentLengthIn: 8, stockThicknessIn: 0.125, staggerOffsetIn: 1 });
+    for (let i = 0; i < a.splicePositionsIn.length; i++) {
+      expect(a.splicePositionsIn[i]).not.toBeCloseTo(b.splicePositionsIn[i], 3);
+    }
+  });
+
+  it('gussetWidthIn overrides the default (= memberDepthIn)', () => {
+    const r = splitPiece({
+      pieceLengthIn: 20,
+      maxSegmentLengthIn: 8,
+      stockThicknessIn: 0.125,
+      memberDepthIn: 0.125,
+      gussetWidthIn: 0.5,
+    });
+    for (const j of r.joints) expect(j.gussetWidthIn).toBeCloseTo(0.5, 6);
+  });
+
+  it('gussetLengthMultiplier scales the gusset length', () => {
+    const r = splitPiece({
+      pieceLengthIn: 20,
+      maxSegmentLengthIn: 8,
+      stockThicknessIn: 0.125,
+      memberDepthIn: 0.2,
+      gussetLengthMultiplier: 5,
+    });
+    for (const j of r.joints) expect(j.gussetLengthIn).toBeCloseTo(1.0, 6);
+  });
+
+  it('sum of segment lengths equals piece length', () => {
+    fc.assert(
+      fc.property(
+        fc.double({ min: 1, max: 100, noNaN: true }),
+        fc.double({ min: 1, max: 100, noNaN: true }),
+        (L, M) => {
+          const r = splitPiece({ pieceLengthIn: L, maxSegmentLengthIn: M, stockThicknessIn: 0.125 });
+          const sum = r.segments.reduce((a, s) => a + s.lengthIn, 0);
+          expect(sum).toBeCloseTo(L, 6);
         }
       )
     );

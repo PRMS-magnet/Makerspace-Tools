@@ -78,6 +78,23 @@ describe('buildWallCutListPieces', () => {
       { ...DEFAULTS, widthIn: 20, maxPieceLengthIn: 8 },
       'main',
     );
-    expect(pieces.filter((p) => p.placement?.kind === 'wall-bottom-plate').length).toBe(3);
+    const segs = pieces.filter((p) => p.placement?.kind === 'wall-bottom-plate');
+    expect(segs.length).toBeGreaterThanOrEqual(3);
+    for (const s of segs) {
+      const poly = s.polygon as readonly (readonly [number, number])[];
+      const len = Math.max(...poly.map((v) => v[0])) - Math.min(...poly.map((v) => v[0]));
+      expect(len).toBeLessThanOrEqual(8 + 1e-6);
+    }
+  });
+
+  it('emits butt-gusset pieces at every plate splice', () => {
+    const { pieces } = buildWallCutListPieces(
+      { ...DEFAULTS, widthIn: 20, maxPieceLengthIn: 8 },
+      'main',
+    );
+    const gussets = pieces.filter((p) => p.placement?.kind === 'splice-gusset');
+    const bottomSegs = pieces.filter((p) => p.placement?.kind === 'wall-bottom-plate').length;
+    const topSegs = pieces.filter((p) => p.placement?.kind === 'wall-top-plate').length;
+    expect(gussets.length).toBe((bottomSegs - 1) + (topSegs - 1));
   });
 });

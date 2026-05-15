@@ -4,6 +4,7 @@ import { computeFloorGeometry, computeJoistPositions } from './compute';
 import { resolveBlockingRows } from './blocking';
 import { rectanglePolygon } from './polygons';
 import { resolvePiece, type ResolveContext, type FloorFrame } from '../core/resolver';
+import { splitPiece } from '../core/joinery';
 
 export function computeFloorPieces3D(p: FloorParams, floorId: string): Piece3D[] {
   const geom = computeFloorGeometry(p);
@@ -46,7 +47,10 @@ export function computeFloorPieces3D(p: FloorParams, floorId: string): Piece3D[]
 
   const declared: Piece[] = [];
 
+  const rimOverhang = p.joistThicknessIn / 2;
   const rimTotalLen = p.widthIn + p.joistThicknessIn;
+  const preferredSplices = joistPositions.map((x) => x + rimOverhang);
+
   for (const side of ['front', 'back'] as const) {
     declared.push({
       polygon: rectanglePolygon(rimTotalLen, p.rimThicknessIn),
@@ -54,6 +58,31 @@ export function computeFloorPieces3D(p: FloorParams, floorId: string): Piece3D[]
       label: `${side}-rim`,
       placement: { kind: 'floor-rim', floorId, side },
     });
+    const split = splitPiece({
+      pieceLengthIn: rimTotalLen,
+      maxSegmentLengthIn: p.maxPieceLengthIn,
+      stockThicknessIn: p.stockThicknessIn,
+      memberDepthIn: p.rimThicknessIn,
+      gussetWidthIn: p.joistDepthIn,
+      strategy: 'snapToGrid',
+      preferredPositionsIn: preferredSplices,
+      joint: 'butt-gusset',
+    });
+    for (const j of split.joints) {
+      declared.push({
+        polygon: rectanglePolygon(j.gussetLengthIn, j.gussetWidthIn),
+        op: 'cut',
+        label: 'splice-gusset',
+        placement: {
+          kind: 'splice-gusset',
+          hostKind: 'floor-rim',
+          hostId: floorId,
+          hostSubKey: side,
+          positionAlongIn: j.positionIn - j.gussetLengthIn / 2,
+          spliceFace: 'top',
+        },
+      });
+    }
   }
 
   for (let i = 0; i < nJoists; i++) {
