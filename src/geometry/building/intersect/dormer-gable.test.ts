@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { computeDormerGable, computeDormerGableGeom } from './dormer-gable';
+import { isPolygonWithHoles } from '../../core/types';
 import type { RoofUnit } from '../../roof/types';
 import type { DormerGablePlacement } from '../types';
 
@@ -36,7 +37,7 @@ describe('computeDormerGable', () => {
 
   it('front wall pentagon has 5 vertices', () => {
     const front = result.newPieces.find((p) => p.placement?.kind === 'dormer-front-wall')!;
-    const outline = Array.isArray(front.polygon) ? front.polygon : front.polygon.outline;
+    const outline = isPolygonWithHoles(front.polygon) ? front.polygon.outline : front.polygon;
     expect(outline.length).toBe(5);
   });
 
@@ -65,8 +66,8 @@ describe('computeDormerGable -- window opening', () => {
   it('front wall is PolygonWithHoles when window is set', () => {
     const r = computeDormerGable(HOST, { ...PLACEMENT, window: { widthIn: 1.5, heightIn: 1.5, sillIn: 0.3 } }, 'd1', OPTS);
     const front = r.newPieces.find((p) => p.placement?.kind === 'dormer-front-wall')!;
-    expect(Array.isArray(front.polygon)).toBe(false);
-    if (!Array.isArray(front.polygon)) {
+    expect(isPolygonWithHoles(front.polygon)).toBe(true);
+    if (isPolygonWithHoles(front.polygon)) {
       expect(front.polygon.outline.length).toBe(5);
       expect(front.polygon.holes.length).toBe(1);
       expect(front.polygon.holes[0].length).toBe(4);

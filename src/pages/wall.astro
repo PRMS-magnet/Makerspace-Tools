@@ -534,15 +534,17 @@ const previewViews = [
     diagramSlot.innerHTML = out.diagramSvg;
     if (cutListVisible()) cutSlot.innerHTML = cutSvg;
 
-    const nStuds = piecesResult.pieces3D.filter((x) => x.placement?.kind === 'wall-stud').length;
-    const nBlocks = piecesResult.pieces3D.filter((x) => x.placement?.kind === 'wall-block').length;
-    const nPlates = piecesResult.pieces3D.filter((x) => {
+    const nStuds = piecesResult.pieces.filter((x) => x.placement?.kind === 'wall-stud').length;
+    const nBlocks = piecesResult.pieces.filter((x) => x.placement?.kind === 'wall-block').length;
+    const nPlateSegs = piecesResult.pieces.filter((x) => {
       const k = x.placement?.kind;
       return k === 'wall-bottom-plate' || k === 'wall-top-plate';
     }).length;
+    const nGussets = piecesResult.pieces.filter((x) => x.placement?.kind === 'splice-gusset').length;
     derivedEl.innerHTML = `
       <dt>Studs</dt><dd>${nStuds}</dd>
-      <dt>Plates</dt><dd>${nPlates}</dd>
+      <dt>Plate segments</dt><dd>${nPlateSegs}</dd>
+      <dt>Splice gussets</dt><dd>${nGussets}</dd>
       <dt>Blocks</dt><dd>${nBlocks}</dd>
       <dt>Sheet</dt><dd>${bbox.totalHeightIn.toFixed(2)}&Prime; tall &times; ${p.sheetWidthIn.toFixed(2)}&Prime; wide</dd>
     `;

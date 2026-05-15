@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { computeDormerShed, computeDormerShedGeom } from './dormer-shed';
+import { isPolygonWithHoles } from '../../core/types';
 import type { RoofUnit } from '../../roof/types';
 import type { DormerShedPlacement } from '../types';
 
@@ -30,7 +31,7 @@ describe('computeDormerShed', () => {
 
   it('cheek wall is a trapezoid with 4 vertices', () => {
     const cheek = result.newPieces.find((p) => p.placement?.kind === 'dormer-cheek-wall')!;
-    const outline = Array.isArray(cheek.polygon) ? cheek.polygon : cheek.polygon.outline;
+    const outline = isPolygonWithHoles(cheek.polygon) ? cheek.polygon.outline : cheek.polygon;
     expect(outline.length).toBe(4);
   });
 
@@ -38,7 +39,7 @@ describe('computeDormerShed', () => {
     const fronts = result.newPieces.filter((p) => p.placement?.kind === 'dormer-front-wall');
     expect(fronts.length).toBe(1);
     const front = fronts[0];
-    const outline = Array.isArray(front.polygon) ? front.polygon : front.polygon.outline;
+    const outline = isPolygonWithHoles(front.polygon) ? front.polygon.outline : front.polygon;
     expect(outline.length).toBe(4);
   });
 
@@ -62,8 +63,8 @@ describe('computeDormerShed -- window opening', () => {
   it('front wall is PolygonWithHoles when window is set', () => {
     const r = computeDormerShed(HOST, { ...PLACEMENT, window: { widthIn: 1.5, heightIn: 0.8, sillIn: 0.3 } }, 'd1', OPTS);
     const front = r.newPieces.find((p) => p.placement?.kind === 'dormer-front-wall')!;
-    expect(Array.isArray(front.polygon)).toBe(false);
-    if (!Array.isArray(front.polygon)) {
+    expect(isPolygonWithHoles(front.polygon)).toBe(true);
+    if (isPolygonWithHoles(front.polygon)) {
       expect(front.polygon.outline.length).toBe(4);
       expect(front.polygon.holes.length).toBe(1);
       expect(front.polygon.holes[0].length).toBe(4);
