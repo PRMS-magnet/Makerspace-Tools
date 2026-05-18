@@ -4,6 +4,13 @@ export type FramingMode = 'wall' | 'floor';
 
 export type EngraveStyle = 'brackets' | 'solid' | 'none';
 
+export interface SparesConfig {
+  members: number;
+  endCaps: number;
+  blocks: number;
+  spliceGussets: number;
+}
+
 export type BlockingSpec =
   | { mode: 'none' }
   | { mode: 'half'; positionFraction: number }
@@ -24,6 +31,7 @@ export interface FramingUnit {
   blockingThicknessIn: number;
   stockThicknessIn: number;
   engraveStyle: EngraveStyle;
+  spares: SparesConfig;
 }
 
 export type FramingParams = Omit<FramingUnit, 'id'> & SheetParams;
@@ -55,5 +63,13 @@ export function framingParamsToUnit(p: FramingParams, id = 'main'): FramingUnit 
     blockingThicknessIn: p.blockingThicknessIn,
     stockThicknessIn: p.stockThicknessIn,
     engraveStyle: p.engraveStyle,
+    spares: p.spares,
   };
 }
+
+export const DEFAULT_SPARES: SparesConfig = {
+  members: 1,
+  endCaps: 0,
+  blocks: 3,
+  spliceGussets: 2,
+};

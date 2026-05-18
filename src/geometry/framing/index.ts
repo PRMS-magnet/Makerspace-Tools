@@ -18,17 +18,18 @@ export interface FramingPiecesResult {
   sheet: Sheet;
   diagramSvg: string;
   warnings: string[];
+  spareCounts: { members: number; endCaps: number; blocks: number; spliceGussets: number };
 }
 
 export function framingPieces(p: FramingParams): FramingPiecesResult {
-  const { pieces, warnings } = buildFramingCutListPieces(p, 'main');
+  const { pieces, warnings, spareCounts } = buildFramingCutListPieces(p, 'main');
   const pieces3D = computeFramingPieces3D(p, 'main');
   const sheet: Sheet = {
     widthIn: p.sheetWidthIn,
     marginIn: p.marginIn,
     pieceSpacingIn: p.pieceSpacingIn,
   };
-  return { pieces, pieces3D, sheet, diagramSvg: buildFramingDiagramSvg(p), warnings };
+  return { pieces, pieces3D, sheet, diagramSvg: buildFramingDiagramSvg(p), warnings, spareCounts };
 }
 
 export function composeFramingCutSvg(

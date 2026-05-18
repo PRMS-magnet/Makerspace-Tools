@@ -95,6 +95,12 @@ const previewViews = [
             </select>
           </label>
         </FormGroup>
+        <FormGroup label="Spare parts">
+          <NumberField name="spareMembers" label="Spare studs/joists" value={1} step={1} min={0} max={20} />
+          <NumberField name="spareEndCaps" label="Spare plates/rims" value={0} step={1} min={0} max={20} />
+          <NumberField name="spareBlocks" label="Spare blocks" value={3} step={1} min={0} max={50} />
+          <NumberField name="spareSpliceGussets" label="Spare splice gussets" value={2} step={1} min={0} max={20} />
+        </FormGroup>
         <FormGroup label="Stock">
           <NumberField name="stockThicknessIn" label="Wood thickness (in)" value={0.125} step={0.0625} min={0.0625} />
           <NumberField name="sheetWidthIn" label="Sheet width (in)" value={12} step={0.5} min={1} />
@@ -383,6 +389,12 @@ const previewViews = [
       blockingThicknessIn: num('blockingThicknessIn'),
       stockThicknessIn: num('stockThicknessIn'),
       engraveStyle: engraveStyleSel.value as EngraveStyle,
+      spares: {
+        members: num('spareMembers'),
+        endCaps: num('spareEndCaps'),
+        blocks: num('spareBlocks'),
+        spliceGussets: num('spareSpliceGussets'),
+      },
       sheetWidthIn: num('sheetWidthIn'),
       maxPieceLengthIn: num('maxPieceLengthIn'),
       marginIn: num('marginIn'),
@@ -438,6 +450,11 @@ const previewViews = [
     setVal('blockingThicknessIn', p.blockingThicknessIn);
     setVal('stockThicknessIn', p.stockThicknessIn);
     engraveStyleSel.value = p.engraveStyle ?? 'brackets';
+    const spares = p.spares ?? { members: 1, endCaps: 0, blocks: 3, spliceGussets: 2 };
+    setVal('spareMembers', spares.members);
+    setVal('spareEndCaps', spares.endCaps);
+    setVal('spareBlocks', spares.blocks);
+    setVal('spareSpliceGussets', spares.spliceGussets);
     setVal('sheetWidthIn', p.sheetWidthIn);
     setVal('maxPieceLengthIn', p.maxPieceLengthIn);
     setVal('marginIn', p.marginIn);
@@ -556,11 +573,13 @@ const previewViews = [
     const nBlocks = piecesResult.pieces.filter((x) => x.placement?.kind === 'framing-block').length;
     const nEndCapSegs = piecesResult.pieces.filter((x) => x.placement?.kind === 'framing-end-cap').length;
     const nGussets = piecesResult.pieces.filter((x) => x.placement?.kind === 'splice-gusset').length;
+    const sp = piecesResult.spareCounts ?? { members: 0, endCaps: 0, blocks: 0, spliceGussets: 0 };
+    const fmtCount = (base: number, spare: number) => spare > 0 ? `${base} + ${spare} spare` : `${base}`;
     derivedEl.innerHTML = `
-      <dt>${L.memberPlural.charAt(0).toUpperCase()}${L.memberPlural.slice(1)}</dt><dd>${nMembers}</dd>
-      <dt>${L.endCapNoun.charAt(0).toUpperCase()}${L.endCapNoun.slice(1)} segments</dt><dd>${nEndCapSegs}</dd>
-      <dt>Splice gussets</dt><dd>${nGussets}</dd>
-      <dt>Blocks</dt><dd>${nBlocks}</dd>
+      <dt>${L.memberPlural.charAt(0).toUpperCase()}${L.memberPlural.slice(1)}</dt><dd>${fmtCount(nMembers, sp.members)}</dd>
+      <dt>${L.endCapNoun.charAt(0).toUpperCase()}${L.endCapNoun.slice(1)} segments</dt><dd>${fmtCount(nEndCapSegs, sp.endCaps)}</dd>
+      <dt>Splice gussets</dt><dd>${fmtCount(nGussets, sp.spliceGussets)}</dd>
+      <dt>Blocks</dt><dd>${fmtCount(nBlocks, sp.blocks)}</dd>
       <dt>Sheet</dt><dd>${bbox.totalHeightIn.toFixed(2)}&Prime; tall &times; ${p.sheetWidthIn.toFixed(2)}&Prime; wide</dd>
     `;
     renderWarnings(out.warnings);

@@ -8,6 +8,7 @@ import { splitPiece, type SpliceJoint } from '../core/joinery';
 export interface FramingCutListResult {
   pieces: Piece[];
   warnings: string[];
+  spareCounts: { members: number; endCaps: number; blocks: number; spliceGussets: number };
 }
 
 const MARK_LINE_WIDTH_IN = 0.015;
@@ -243,5 +244,71 @@ export function buildFramingCutListPieces(p: FramingParams, framingId: string): 
     warnings.push(`Framing ${noun} length ${endCapTotalLen.toFixed(2)} in exceeds max piece length; ${noun}s split into ${splitA.segments.length} segments with ${splitA.joints.length} butt-gusset splice(s)`);
   }
 
-  return { pieces, warnings };
+  // Spare pieces. Clone canonical templates per kind so spares are visibly
+  // marked but otherwise identical (so the laser cuts them at the same size).
+  const spareCounts = {
+    members: Math.max(0, Math.floor(p.spares.members)),
+    endCaps: Math.max(0, Math.floor(p.spares.endCaps)),
+    blocks: Math.max(0, Math.floor(p.spares.blocks)),
+    spliceGussets: Math.max(0, Math.floor(p.spares.spliceGussets)),
+  };
+
+  const memberTemplate = pieces.find((x) => x.placement?.kind === 'framing-member');
+  if (memberTemplate) {
+    for (let i = 0; i < spareCounts.members; i++) {
+      pieces.push({
+        ...memberTemplate,
+        label: `${memberTemplate.label ?? 'framing-member'} +spare`,
+        placement: undefined,
+        engravedFeatures: undefined,
+      });
+    }
+  }
+
+  const endCapTemplate = pieces.find((x) => x.placement?.kind === 'framing-end-cap');
+  if (endCapTemplate) {
+    for (let i = 0; i < spareCounts.endCaps; i++) {
+      pieces.push({
+        ...endCapTemplate,
+        label: `${endCapTemplate.label ?? 'framing-end-cap'} +spare`,
+        placement: undefined,
+        engravedFeatures: undefined,
+      });
+    }
+  }
+
+  const blockTemplate = pieces.find((x) => x.placement?.kind === 'framing-block');
+  if (blockTemplate) {
+    for (let i = 0; i < spareCounts.blocks; i++) {
+      pieces.push({
+        ...blockTemplate,
+        label: `${blockTemplate.label ?? 'framing-block'} +spare`,
+        placement: undefined,
+      });
+    }
+  } else if (spareCounts.blocks > 0) {
+    // No blocks emitted (e.g., blocking=none) but user requested spare blocks.
+    // Emit canonical-size blocks so they have spares to keep.
+    const canonicalBlockWidth = geom.bayWidthIn;
+    for (let i = 0; i < spareCounts.blocks; i++) {
+      pieces.push({
+        polygon: rectanglePolygon(canonicalBlockWidth, p.memberDepthIn),
+        op: 'cut',
+        label: 'framing-block +spare',
+      });
+    }
+  }
+
+  const gussetTemplate = pieces.find((x) => x.placement?.kind === 'splice-gusset');
+  if (gussetTemplate) {
+    for (let i = 0; i < spareCounts.spliceGussets; i++) {
+      pieces.push({
+        ...gussetTemplate,
+        label: `${gussetTemplate.label ?? 'splice-gusset'} +spare`,
+        placement: undefined,
+      });
+    }
+  }
+
+  return { pieces, warnings, spareCounts };
 }

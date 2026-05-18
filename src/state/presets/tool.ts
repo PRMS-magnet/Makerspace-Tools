@@ -43,6 +43,7 @@ const FRAMING_DEFAULT_WALL: FramingParams = {
   blockingThicknessIn: 0.125,
   stockThicknessIn: 0.125,
   engraveStyle: 'brackets',
+  spares: { members: 1, endCaps: 0, blocks: 3, spliceGussets: 2 },
   sheetWidthIn: 12.0,
   maxPieceLengthIn: 12.0,
   marginIn: 0.12,

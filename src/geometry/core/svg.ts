@@ -52,9 +52,11 @@ export function composeMultiOpCutSvg(
   const body = placed
     .map((pp) => {
       const color = LASER_COLORS[pp.op];
+      const isSpare = (pp.label ?? '').includes('+spare');
+      const strokeDash = isSpare ? ` stroke-dasharray="0.08 0.04"` : '';
       const outlineEl = pp.op === 'engrave'
-        ? `    <path d="${pathFromPolygon(pp.polygon, pp.offsetIn)}" stroke="${color}" fill="${color}" fill-opacity="0.35" stroke-width="0.005"/>`
-        : `    <path d="${pathFromPolygon(pp.polygon, pp.offsetIn)}" stroke="${color}" fill="none" stroke-width="0.005"/>`;
+        ? `    <path d="${pathFromPolygon(pp.polygon, pp.offsetIn)}" stroke="${color}" fill="${color}" fill-opacity="0.35" stroke-width="0.005"${strokeDash}/>`
+        : `    <path d="${pathFromPolygon(pp.polygon, pp.offsetIn)}" stroke="${color}" fill="none" stroke-width="0.005"${strokeDash}/>`;
       if (!pp.engravedFeatures || pp.engravedFeatures.length === 0) return outlineEl;
       const engraveColor = LASER_COLORS.engrave;
       const featureEls = pp.engravedFeatures

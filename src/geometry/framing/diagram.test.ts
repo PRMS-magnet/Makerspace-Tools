@@ -7,6 +7,7 @@ const BASE: FramingParams = {
   memberDepthIn: 0.25, nMembersOverride: 6, endCapHeightIn: 0.125,
   endCapBDoubled: false, blocking: { mode: 'none' }, blockingThicknessIn: 0.125,
   stockThicknessIn: 0.125, engraveStyle: 'brackets',
+  spares: { members: 0, endCaps: 0, blocks: 0, spliceGussets: 0 },
   sheetWidthIn: 12, maxPieceLengthIn: 12, marginIn: 0.12,
 };
 

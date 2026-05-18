@@ -15,6 +15,7 @@ const DEFAULTS: FramingParams = {
   blockingThicknessIn: 0.125,
   stockThicknessIn: 0.125,
   engraveStyle: 'brackets',
+  spares: { members: 0, endCaps: 0, blocks: 0, spliceGussets: 0 },
   sheetWidthIn: 12.0,
   maxPieceLengthIn: 12.0,
   marginIn: 0.12,
@@ -98,6 +99,35 @@ describe('buildFramingCutListPieces', () => {
     const segs = pieces.filter((p) => p.placement?.kind === 'framing-end-cap' && p.placement.endCap === 'A');
     expect(segs.length).toBeGreaterThanOrEqual(3);
     expect(warnings.length).toBeGreaterThan(0);
+  });
+
+  it('spares emit extra labeled "+spare" pieces with the same cut polygon as the canonical one', () => {
+    const { pieces, spareCounts } = buildFramingCutListPieces(
+      { ...DEFAULTS, blocking: { mode: 'half', positionFraction: 0.5 }, spares: { members: 2, endCaps: 1, blocks: 3, spliceGussets: 0 } },
+      'main',
+    );
+    expect(spareCounts).toEqual({ members: 2, endCaps: 1, blocks: 3, spliceGussets: 0 });
+    const sparePieces = pieces.filter((p) => (p.label ?? '').includes('+spare'));
+    expect(sparePieces.length).toBe(2 + 1 + 3); // members + endCaps + blocks
+    // Spares have no placement (they're extras, not part of the assembly)
+    expect(sparePieces.every((p) => p.placement === undefined)).toBe(true);
+    // A spare member matches the canonical member polygon bbox
+    const canonicalMember = pieces.find((p) => p.placement?.kind === 'framing-member')!;
+    const spareMember = sparePieces.find((p) => (p.label ?? '').startsWith('framing-member'))!;
+    const cPoly = canonicalMember.polygon as readonly (readonly [number, number])[];
+    const sPoly = spareMember.polygon as readonly (readonly [number, number])[];
+    const cXs = cPoly.map((v) => v[0]); const sXs = sPoly.map((v) => v[0]);
+    expect(Math.max(...sXs) - Math.min(...sXs)).toBeCloseTo(Math.max(...cXs) - Math.min(...cXs), 6);
+  });
+
+  it('blocks-spare works even when there is no blocking (canonical block size used)', () => {
+    const { pieces, spareCounts } = buildFramingCutListPieces(
+      { ...DEFAULTS, spares: { members: 0, endCaps: 0, blocks: 5, spliceGussets: 0 } },
+      'main',
+    );
+    expect(spareCounts.blocks).toBe(5);
+    const spares = pieces.filter((p) => (p.label ?? '').includes('+spare'));
+    expect(spares.length).toBe(5);
   });
 
   it('floor mode produces the same piece counts as wall mode given equivalent params', () => {

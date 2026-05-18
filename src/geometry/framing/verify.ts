@@ -58,6 +58,10 @@ function pieceKindOf(piece: Piece | Piece3D): string {
   return piece.placement?.kind ?? 'unknown';
 }
 
+function isSpare(piece: Piece | Piece3D): boolean {
+  return (piece.label ?? '').includes('+spare');
+}
+
 function pieceIdentity(piece: Piece | Piece3D): string {
   const p = piece.placement;
   if (!p) return 'unknown';
@@ -71,16 +75,18 @@ function pieceIdentity(piece: Piece | Piece3D): string {
 }
 
 // LAYER 1 -- sanity: cut <-> 3D parity per piece kind and per identity
+// Spare pieces are excluded -- they have no 3D counterpart by design.
 function checkSanity(
   params: FramingParams,
   cutPieces: ReadonlyArray<Piece>,
   pieces3D: ReadonlyArray<Piece3D>,
 ): VerificationError[] {
   const errors: VerificationError[] = [];
+  const assembly = cutPieces.filter((p) => !isSpare(p));
 
   const countByKindCut = new Map<string, number>();
   const countByKind3D = new Map<string, number>();
-  for (const p of cutPieces) countByKindCut.set(pieceKindOf(p), (countByKindCut.get(pieceKindOf(p)) ?? 0) + 1);
+  for (const p of assembly) countByKindCut.set(pieceKindOf(p), (countByKindCut.get(pieceKindOf(p)) ?? 0) + 1);
   for (const p of pieces3D) countByKind3D.set(pieceKindOf(p), (countByKind3D.get(pieceKindOf(p)) ?? 0) + 1);
 
   const allKinds = new Set<string>([...countByKindCut.keys(), ...countByKind3D.keys()]);
@@ -99,7 +105,7 @@ function checkSanity(
 
   // Identity-level parity: every cut piece should have a 3D counterpart with matching dims.
   const cutById = new Map<string, Piece>();
-  for (const p of cutPieces) cutById.set(pieceIdentity(p), p);
+  for (const p of assembly) cutById.set(pieceIdentity(p), p);
   const threeDById = new Map<string, Piece3D>();
   for (const p of pieces3D) threeDById.set(pieceIdentity(p), p);
 
