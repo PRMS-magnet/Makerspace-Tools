@@ -2,6 +2,7 @@ import { load, save } from './storage';
 import type { RoofParams } from '../../geometry/roof/types';
 import type { WallParams } from '../../geometry/wall/types';
 import type { FloorParams } from '../../geometry/floor/types';
+import type { FramingParams } from '../../geometry/framing/types';
 
 export interface ToolPreset<P> {
   id: string;
@@ -78,6 +79,37 @@ export const BUILTIN_FLOOR_PRESETS: ToolPreset<FloorParams>[] = [
   { id: 'floor-1-18-blocked', toolSlug: 'floor', name: '1:18 floor with mid-span blocking', params: { ...FLOOR_DEFAULT, blocking: { mode: 'half', positionFraction: 0.5 } }, createdAt: '2026-05-15T00:00:00Z', builtin: true },
 ];
 
+const FRAMING_DEFAULT_WALL: FramingParams = {
+  mode: 'wall',
+  lengthIn: 8.0,
+  spanIn: 5.33,
+  memberSpacingIn: 0.889,
+  memberDepthIn: 0.25,
+  nMembersOverride: null,
+  endCapHeightIn: 0.125,
+  endCapBDoubled: false,
+  blocking: { mode: 'none' },
+  blockingThicknessIn: 0.125,
+  stockThicknessIn: 0.125,
+  sheetWidthIn: 12.0,
+  maxPieceLengthIn: 12.0,
+  marginIn: 0.12,
+  pieceSpacingIn: 0.06,
+};
+
+const FRAMING_DEFAULT_FLOOR: FramingParams = {
+  ...FRAMING_DEFAULT_WALL,
+  mode: 'floor',
+  spanIn: 6.67,
+};
+
+export const BUILTIN_FRAMING_PRESETS: ToolPreset<FramingParams>[] = [
+  { id: 'framing-1-18-wall', toolSlug: 'framing', name: '1:18 simple wall', params: FRAMING_DEFAULT_WALL, createdAt: '2026-05-17T00:00:00Z', builtin: true },
+  { id: 'framing-1-18-wall-tall', toolSlug: 'framing', name: '1:18 tall wall (10 ft)', params: { ...FRAMING_DEFAULT_WALL, spanIn: 6.67, blocking: { mode: 'half', positionFraction: 0.5 } }, createdAt: '2026-05-17T00:00:00Z', builtin: true },
+  { id: 'framing-1-18-floor', toolSlug: 'framing', name: '1:18 floor', params: FRAMING_DEFAULT_FLOOR, createdAt: '2026-05-17T00:00:00Z', builtin: true },
+  { id: 'framing-1-18-floor-blocked', toolSlug: 'framing', name: '1:18 floor with mid-span blocking', params: { ...FRAMING_DEFAULT_FLOOR, blocking: { mode: 'half', positionFraction: 0.5 } }, createdAt: '2026-05-17T00:00:00Z', builtin: true },
+];
+
 const isToolPreset = (x: unknown): x is ToolPreset<unknown> => {
   if (typeof x !== 'object' || x === null) return false;
   const o = x as Record<string, unknown>;
@@ -94,6 +126,7 @@ function builtinsFor(slug: string): ToolPreset<unknown>[] {
   if (slug === 'roof') return BUILTIN_ROOF_PRESETS as ToolPreset<unknown>[];
   if (slug === 'wall') return BUILTIN_WALL_PRESETS as ToolPreset<unknown>[];
   if (slug === 'floor') return BUILTIN_FLOOR_PRESETS as ToolPreset<unknown>[];
+  if (slug === 'framing') return BUILTIN_FRAMING_PRESETS as ToolPreset<unknown>[];
   return [];
 }
 
