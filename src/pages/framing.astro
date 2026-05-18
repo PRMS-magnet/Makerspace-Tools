@@ -546,7 +546,9 @@ const previewViews = [
       const h = Math.max(pendingPartial.totalHeightIn, stableMinHeightIn);
       const svg = composeFramingCutSvg(pendingPartial.placed, h, p.sheetWidthIn);
       if (cutListVisible()) cutSlot.innerHTML = svg;
-      if (lastValidOutput) lastValidOutput = { ...lastValidOutput, cutSvg: svg };
+      // Do NOT persist the partial into lastValidOutput -- partials can be missing
+      // pieces. lastValidOutput.cutSvg must always reflect a complete layout so the
+      // download button never produces a short cut sheet.
       pendingPartial = null;
     };
 
@@ -569,6 +571,11 @@ const previewViews = [
         if (cutListVisible()) cutSlot.innerHTML = tighter;
         if (lastValidOutput) lastValidOutput = { ...lastValidOutput, cutSvg: tighter, warnings: [...piecesResult.warnings, ...res.warnings] };
         lastTightHeightIn = res.totalHeightIn;
+      } else {
+        // Smart packer fell back. Any partial we already painted into cutSlot is
+        // potentially incomplete -- restore the full bbox-fallback layout so what
+        // the user sees matches what they would download.
+        if (cutListVisible() && lastValidOutput) cutSlot.innerHTML = lastValidOutput.cutSvg;
       }
       renderWarnings([...piecesResult.warnings, ...res.warnings]);
     }).catch((err) => {
