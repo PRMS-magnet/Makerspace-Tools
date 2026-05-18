@@ -11,6 +11,15 @@ function rect(w: number, h: number): Polygon {
 function piece(w: number, h: number, label: string): Piece {
   return { polygon: rect(w, h), op: 'cut', label };
 }
+
+function pieceWithFeature(
+  w: number,
+  h: number,
+  label: string,
+  feature: Polygon,
+): Piece {
+  return { polygon: rect(w, h), op: 'cut', label, engravedFeatures: [feature] };
+}
 const sheet12: Sheet = { widthIn: 12, marginIn: 0.12, pieceSpacingIn: 0 };
 const sheet12sp: Sheet = { widthIn: 12, marginIn: 0.12, pieceSpacingIn: 0.05 };
 
@@ -59,6 +68,40 @@ describe('nfp-packer (rotation)', () => {
     const ys = outline.map((p) => p[1]);
     expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(1, 6);
     expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(8, 6);
+  });
+
+  it('rotates engravedFeatures together with the outline when the piece is rotated', () => {
+    // 1x8 piece with a feature at (0..1, 4..4.1) -- a thin horizontal tick near y=4
+    // After 90deg rotation, the outline becomes 8 wide x 1 tall, and the feature
+    // should rotate with it (ending up around x=3.9..4 in the rotated frame).
+    const feature: Polygon = [[0, 4], [1, 4], [1, 4.1], [0, 4.1]];
+    const r = pack(
+      [pieceWithFeature(1, 8, 'tall-with-mark', feature)],
+      sheet12,
+      { rotations: [0, 90], pieceSpacingIn: 0, effort: 'realtime' },
+    );
+    expect(r.placed).toHaveLength(1);
+    const placed = r.placed[0];
+    expect(placed.engravedFeatures).toBeDefined();
+    const featPts = placed.engravedFeatures![0] as readonly (readonly [number, number])[];
+    const outline = placed.polygon as Polygon;
+    const outBb = {
+      minX: Math.min(...outline.map((p) => p[0])),
+      maxX: Math.max(...outline.map((p) => p[0])),
+      minY: Math.min(...outline.map((p) => p[1])),
+      maxY: Math.max(...outline.map((p) => p[1])),
+    };
+    const featBb = {
+      minX: Math.min(...featPts.map((p) => p[0])),
+      maxX: Math.max(...featPts.map((p) => p[0])),
+      minY: Math.min(...featPts.map((p) => p[1])),
+      maxY: Math.max(...featPts.map((p) => p[1])),
+    };
+    // Feature must sit inside the outline's bbox after rotation+translation.
+    expect(featBb.minX).toBeGreaterThanOrEqual(outBb.minX - 1e-6);
+    expect(featBb.maxX).toBeLessThanOrEqual(outBb.maxX + 1e-6);
+    expect(featBb.minY).toBeGreaterThanOrEqual(outBb.minY - 1e-6);
+    expect(featBb.maxY).toBeLessThanOrEqual(outBb.maxY + 1e-6);
   });
 });
 

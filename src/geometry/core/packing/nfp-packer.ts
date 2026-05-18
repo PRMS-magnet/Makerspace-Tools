@@ -455,9 +455,18 @@ function finalise(bestResult: BLFResult, setupResult: PackSetup, t0: number, she
     const placedDisplay = translateAny(rotated, [dx, dy]);
     const bb = bboxOf(outlineOf(placedDisplay));
     const normalised = translateAny(placedDisplay, [-bb.minX, -bb.minY]);
+    const source = p.item.flat.source;
+    const transformedFeatures = source.engravedFeatures && source.engravedFeatures.length > 0
+      ? source.engravedFeatures.map((feat) => {
+          const rotatedFeat = rotatePolyDeg(feat, p.chosen.rotationDeg);
+          const translatedFeat = translate(rotatedFeat, [dx, dy]);
+          return translate(translatedFeat, [-bb.minX, -bb.minY]);
+        })
+      : source.engravedFeatures;
     placed.push({
-      ...p.item.flat.source,
+      ...source,
       polygon: normalised,
+      engravedFeatures: transformedFeatures,
       offsetIn: [bb.minX, bb.minY],
     });
   }
