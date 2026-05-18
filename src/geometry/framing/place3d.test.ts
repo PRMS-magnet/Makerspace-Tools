@@ -50,4 +50,56 @@ describe('computeFramingPieces3D (floor mode)', () => {
     const member = pieces.find((p) => p.placement?.kind === 'framing-member')!;
     expect(member.extrudeDepthIn).toBeCloseTo(0.25, 6);
   });
+
+  it('floor joist polygon spans interEndCapSpanIn in the Y dimension (not memberDepth)', () => {
+    const pieces = computeFramingPieces3D({ ...DEFAULTS, mode: 'floor' }, 'main');
+    const member = pieces.find((p) => p.placement?.kind === 'framing-member')!;
+    const poly = member.polygon as readonly (readonly [number, number])[];
+    const ys = poly.map((v) => v[1]);
+    const yExtent = Math.max(...ys) - Math.min(...ys);
+    expect(yExtent).toBeCloseTo(5.33 - 0.125 - 0.125, 6);
+  });
+
+  it('floor rim polygon Y dimension is stockThickness (rim is on-edge)', () => {
+    const pieces = computeFramingPieces3D({ ...DEFAULTS, mode: 'floor' }, 'main');
+    const rim = pieces.find((p) => p.placement?.kind === 'framing-end-cap')!;
+    const poly = rim.polygon as readonly (readonly [number, number])[];
+    const ys = poly.map((v) => v[1]);
+    const yExtent = Math.max(...ys) - Math.min(...ys);
+    expect(yExtent).toBeCloseTo(0.125, 6);
+  });
+
+  it('floor block polygon Y is stockThickness, extrudes vertically by memberDepth', () => {
+    const pieces = computeFramingPieces3D(
+      { ...DEFAULTS, mode: 'floor', blocking: { mode: 'half', positionFraction: 0.5 } },
+      'main',
+    );
+    const block = pieces.find((p) => p.placement?.kind === 'framing-block')!;
+    const poly = block.polygon as readonly (readonly [number, number])[];
+    const ys = poly.map((v) => v[1]);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(0.125, 6);
+    expect(block.extrudeDepthIn).toBeCloseTo(0.25, 6);
+  });
+});
+
+describe('block sizing tracks memberDepth (was blockingThickness)', () => {
+  it('wall block extrudes by stockThickness, not blockingThickness', () => {
+    const pieces = computeFramingPieces3D(
+      { ...DEFAULTS, blocking: { mode: 'half', positionFraction: 0.5 } },
+      'main',
+    );
+    const block = pieces.find((p) => p.placement?.kind === 'framing-block')!;
+    expect(block.extrudeDepthIn).toBeCloseTo(0.125, 6);
+  });
+
+  it('wall block polygon Y matches memberDepth (so cut + 3D top-down agree)', () => {
+    const pieces = computeFramingPieces3D(
+      { ...DEFAULTS, blocking: { mode: 'half', positionFraction: 0.5 } },
+      'main',
+    );
+    const block = pieces.find((p) => p.placement?.kind === 'framing-block')!;
+    const poly = block.polygon as readonly (readonly [number, number])[];
+    const ys = poly.map((v) => v[1]);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(0.25, 6);
+  });
 });

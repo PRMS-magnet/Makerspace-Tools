@@ -157,7 +157,7 @@ export function buildFramingCutListPieces(p: FramingParams, framingId: string): 
     const row = rows[r];
     const w = row.spanFullLength ? p.lengthIn : geom.bayWidthIn;
     pieces.push({
-      polygon: rectanglePolygon(w, p.blockingThicknessIn),
+      polygon: rectanglePolygon(w, p.memberDepthIn),
       op: 'cut',
       label: 'framing-block',
       placement: { kind: 'framing-block', framingId, bayIndex: row.bayIndex, rowIndex: r },

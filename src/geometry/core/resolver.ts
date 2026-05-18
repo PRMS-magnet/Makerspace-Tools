@@ -500,12 +500,12 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const row = f.blockRows[p.rowIndex];
       const x = row.spanFullLength ? 0 : f.memberPositionsIn[row.bayIndex] + f.unit.stockThicknessIn / 2;
       if (f.unit.mode === 'wall') {
-        const z = f.unit.endCapHeightIn + row.positionFromEndCapAIn;
+        const z = f.unit.endCapHeightIn + row.positionFromEndCapAIn - f.unit.stockThicknessIn / 2;
         const localOrigin: Vec3 = [x, 0, z];
         const { origin, uAxis, vAxis } = applyFramingFrame(localOrigin, [1, 0, 0], [0, 1, 0], f);
-        return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.blockingThicknessIn };
+        return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.stockThicknessIn };
       } else {
-        const y = f.unit.endCapHeightIn + row.positionFromEndCapAIn - f.unit.blockingThicknessIn / 2;
+        const y = f.unit.endCapHeightIn + row.positionFromEndCapAIn - f.unit.stockThicknessIn / 2;
         const localOrigin: Vec3 = [x, y, 0];
         const { origin, uAxis, vAxis } = applyFramingFrame(localOrigin, [1, 0, 0], [0, 1, 0], f);
         return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.memberDepthIn };

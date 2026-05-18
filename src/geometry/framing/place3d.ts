@@ -49,9 +49,10 @@ export function computeFramingPieces3D(p: FramingParams, framingId: string): Pie
     preferredPositionsIn: preferredSplices,
     joint: 'butt-gusset',
   });
+  const endCapPolyY = p.mode === 'wall' ? p.memberDepthIn : p.stockThicknessIn;
   for (const seg of splitA.segments) {
     declared.push({
-      polygon: rectanglePolygon(seg.lengthIn, p.memberDepthIn),
+      polygon: rectanglePolygon(seg.lengthIn, endCapPolyY),
       op: 'cut',
       label: 'framing-end-cap-A',
       placement: { kind: 'framing-end-cap', framingId, endCap: 'A', layer: 0, segmentStartIn: seg.startIn },
@@ -79,7 +80,7 @@ export function computeFramingPieces3D(p: FramingParams, framingId: string): Pie
     });
     for (const seg of splitB.segments) {
       declared.push({
-        polygon: rectanglePolygon(seg.lengthIn, p.memberDepthIn),
+        polygon: rectanglePolygon(seg.lengthIn, endCapPolyY),
         op: 'cut', label: 'framing-end-cap-B',
         placement: { kind: 'framing-end-cap', framingId, endCap: 'B', layer: layer as 0 | 1, segmentStartIn: seg.startIn },
       });
@@ -93,9 +94,10 @@ export function computeFramingPieces3D(p: FramingParams, framingId: string): Pie
     }
   }
 
+  const memberPolyY = p.mode === 'wall' ? p.memberDepthIn : geom.interEndCapSpanIn;
   for (let i = 0; i < nMembers; i++) {
     declared.push({
-      polygon: rectanglePolygon(p.stockThicknessIn, p.memberDepthIn),
+      polygon: rectanglePolygon(p.stockThicknessIn, memberPolyY),
       op: 'cut', label: 'framing-member',
       placement: { kind: 'framing-member', framingId, indexAlongLength: i },
     });
@@ -105,7 +107,7 @@ export function computeFramingPieces3D(p: FramingParams, framingId: string): Pie
     const row = blockRows[r];
     const w = row.spanFullLength ? p.lengthIn : geom.bayWidthIn;
     declared.push({
-      polygon: rectanglePolygon(w, p.mode === 'wall' ? p.memberDepthIn : p.blockingThicknessIn),
+      polygon: rectanglePolygon(w, p.mode === 'wall' ? p.memberDepthIn : p.stockThicknessIn),
       op: 'cut', label: 'framing-block',
       placement: { kind: 'framing-block', framingId, bayIndex: row.bayIndex, rowIndex: r },
     });

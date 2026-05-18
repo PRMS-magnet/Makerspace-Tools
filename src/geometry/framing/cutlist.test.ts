@@ -80,6 +80,15 @@ describe('buildFramingCutListPieces', () => {
     expect(pieces.filter((p) => p.placement?.kind === 'framing-block').length).toBe(5);
   });
 
+  it('block cut piece is bayWidth x memberDepth (tracks memberDepth, not blockingThickness)', () => {
+    const params = { ...DEFAULTS, blocking: { mode: 'half' as const, positionFraction: 0.5 }, memberDepthIn: 0.4, blockingThicknessIn: 0.0625 };
+    const { pieces } = buildFramingCutListPieces(params, 'main');
+    const block = pieces.find((p) => p.placement?.kind === 'framing-block')!;
+    const poly = block.polygon as readonly (readonly [number, number])[];
+    const ys = poly.map((v) => v[1]);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(0.4, 6);
+  });
+
   it('splits end caps when length exceeds maxPieceLength', () => {
     const { pieces, warnings } = buildFramingCutListPieces(
       { ...DEFAULTS, lengthIn: 20, maxPieceLengthIn: 8 },
