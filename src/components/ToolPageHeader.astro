@@ -5,6 +5,7 @@ interface Props {
   backHref?: string;
   backLabel?: string;
   sourceHref?: string;
+  id?: string;
 }
 const {
   title,
@@ -12,6 +13,7 @@ const {
   backHref,
   backLabel = '<- index',
   sourceHref = '#',
+  id,
 } = Astro.props;
 ---
 <header class="tool-page-header">
@@ -26,7 +28,7 @@ const {
       </slot>
     </div>
   </div>
-  <h1>{title}</h1>
+  <h1 id={id}>{title}</h1>
   {lead && <p class="lead">{lead}</p>}
 </header>
 

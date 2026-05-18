@@ -2,10 +2,11 @@
 interface Props {
   label: string;
   open?: boolean;
+  id?: string;
 }
-const { label, open = false } = Astro.props;
+const { label, open = false, id } = Astro.props;
 ---
-<details open={open}>
+<details open={open} id={id}>
   <summary>{label}</summary>
   <div class="body">
     <slot />

@@ -1,0 +1,773 @@
+---
+import Layout from '../layouts/Layout.astro';
+import FormGroup from '../components/FormGroup.astro';
+import NumberField from '../components/NumberField.astro';
+import CheckboxField from '../components/CheckboxField.astro';
+import ViewToggleBar from '../components/ViewToggleBar.astro';
+import ViewSlot from '../components/ViewSlot.astro';
+import Button from '../components/Button.astro';
+import EmptyState from '../components/EmptyState.astro';
+import ToolPageHeader from '../components/ToolPageHeader.astro';
+import ToolLayout from '../components/ToolLayout.astro';
+import ToolActionBar from '../components/ToolActionBar.astro';
+import SavePresetDialog from '../components/SavePresetDialog.astro';
+
+const previewViews = [
+  { key: 'view3d', label: '3D view' },
+  { key: 'diagram', label: 'Diagram' },
+  { key: 'cutlist', label: 'Cut list', defaultVisible: false },
+  { key: 'derived', label: 'Derived', defaultVisible: false },
+  { key: 'warnings', label: 'Warnings' },
+];
+---
+<Layout
+  title="Framing cutlist - Makerspace Tools"
+  description="Stud/plate or joist/rim cut list with optional blocking for 1:18 miniature houses. Toggle Wall/Floor mode in the form."
+>
+  <div class="tool-page">
+    <ToolPageHeader title="Framing cutlist" id="tool-title" lead="Stud + plate (wall) or joist + rim (floor) cut list." backHref="/" />
+
+    <ToolActionBar>
+      <Button id="toggle-sidebar-btn" ariaLabel="Toggle controls" ariaPressed="true">
+        <span class="icon" aria-hidden="true">&#9776;</span><span class="lbl">Controls</span>
+      </Button>
+      <div class="info">
+        <span>Machine: <strong id="active-machine-name">&mdash;</strong></span>
+        <span>Material: <strong id="active-material-name">&mdash;</strong></span>
+      </div>
+      <label class="preset-picker">
+        Preset
+        <select id="tool-preset-select"></select>
+      </label>
+      <Button id="save-preset-btn">Save preset</Button>
+      <span class="grow"></span>
+      <span class="sep" aria-hidden="true"></span>
+      <Button variant="primary" id="download-cut-btn">Download cut list</Button>
+      <Button id="download-diag-btn">Download diagram</Button>
+    </ToolActionBar>
+
+    <ToolLayout>
+      <form id="params" slot="sidebar" onsubmit="return false">
+        <FormGroup label="Mode">
+          <label class="select-row">
+            <span>Type</span>
+            <select id="framing-mode-select">
+              <option value="wall">Wall (studs + plates)</option>
+              <option value="floor">Floor (joists + rims)</option>
+            </select>
+          </label>
+        </FormGroup>
+        <FormGroup label="Dimensions" id="grp-dimensions">
+          <NumberField name="lengthIn" label="Length (in)" value={8.0} step={0.25} min={0.5} />
+          <NumberField name="spanIn" label="Span (in)" value={5.33} step={0.25} min={0.5} />
+        </FormGroup>
+        <FormGroup label="Members" id="grp-members">
+          <NumberField name="memberSpacingIn" label="Member spacing (in, o.c.)" value={0.889} step={0.0625} min={0.125} />
+          <NumberField name="memberDepthIn" label="Member depth (in)" value={0.25} step={0.0625} min={0.0625} />
+          <CheckboxField name="useOverride" label="Override member count" checked={false} />
+          <NumberField name="nMembersOverride" label="Member count" value={6} step={1} min={2} max={100} />
+        </FormGroup>
+        <FormGroup label="End caps" id="grp-end-caps">
+          <NumberField name="endCapHeightIn" label="End cap height (in)" value={0.125} step={0.0625} min={0.0625} />
+          <CheckboxField name="endCapBDoubled" label="Double end cap B" checked={false} />
+        </FormGroup>
+        <FormGroup label="Blocking">
+          <label class="select-row">
+            <span>Mode</span>
+            <select id="blocking-mode-select">
+              <option value="none">None</option>
+              <option value="half">Single mid-span row</option>
+              <option value="staggered">Staggered (3-2-3)</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          <NumberField name="blockingThicknessIn" label="Block thickness (in)" value={0.125} step={0.0625} min={0.0625} />
+          <div id="blocking-fields"></div>
+        </FormGroup>
+        <FormGroup label="Stock">
+          <NumberField name="stockThicknessIn" label="Wood thickness (in)" value={0.125} step={0.0625} min={0.0625} />
+          <NumberField name="sheetWidthIn" label="Sheet width (in)" value={12} step={0.5} min={1} />
+          <NumberField name="maxPieceLengthIn" label="Max piece length (in)" value={12} step={0.5} min={1} />
+          <NumberField name="marginIn" label="Margin (in)" value={0.12} step={0.01} min={0} />
+          <NumberField name="pieceSpacingIn" label="Piece spacing (in)" value={0.06} step={0.01} min={0} />
+        </FormGroup>
+        <Button id="reset-btn" variant="subtle" block={true}>Reset to preset</Button>
+      </form>
+
+      <div slot="main" class="preview">
+        <ViewToggleBar options={previewViews} />
+        <EmptyState id="empty-state">Toggle a view above to see the output.</EmptyState>
+
+        <div class="view-grid">
+          <ViewSlot name="view3d" label="3D view">
+            <div
+              id="view3d-host"
+              class="view3d-host"
+              tabindex="0"
+              role="img"
+              aria-label="3D preview of the framing. Use the controls below for the same data as text."
+              aria-describedby="derived"
+            ></div>
+          </ViewSlot>
+          <ViewSlot name="diagram" label="Diagram">
+            <div id="diagram-preview" class="svg-slot"></div>
+          </ViewSlot>
+          <ViewSlot name="cutlist" label="Cut list layout">
+            <div id="cutlist-preview" class="svg-slot"></div>
+          </ViewSlot>
+          <ViewSlot name="derived" label="Derived dimensions">
+            <dl id="derived" aria-live="polite"></dl>
+          </ViewSlot>
+          <ViewSlot name="warnings" label="Warnings">
+            <div id="warnings" class="warnings" aria-live="polite"></div>
+          </ViewSlot>
+        </div>
+      </div>
+    </ToolLayout>
+  </div>
+
+  <SavePresetDialog id="save-preset-dialog" />
+</Layout>
+
+<style>
+  .tool-page { max-width: 100%; padding: 20px 24px 40px; box-sizing: border-box; }
+  .tool-action-bar .info { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); }
+  .tool-action-bar .grow { flex: 1; min-width: 8px; }
+  .tool-action-bar .sep { display: inline-block; width: 1px; height: 20px; background: var(--rule); margin: 0 4px; align-self: center; }
+  .tool-action-bar .preset-picker { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .tool-action-bar select { font-family: inherit; font-size: 14px; padding: 4px 6px; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); min-height: 32px; }
+  .icon { font-size: 14px; }
+
+  .preview { min-width: 0; max-width: 1400px; }
+  .view-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .svg-slot { background: var(--bg); border: 1px solid var(--rule); padding: 12px; min-height: 120px; overflow: hidden; }
+  .svg-slot svg { display: block; width: 100%; height: auto; max-width: 100%; }
+  .view3d-host { background: var(--bg); border: 1px solid var(--rule); height: 420px; min-height: 320px; overflow: hidden; position: relative; }
+  .view3d-host canvas { display: block; width: 100%; height: 100%; }
+  dl#derived { font-size: 14px; margin: 0; padding: 12px 16px; border: 1px solid var(--rule); }
+  dl#derived dt { color: var(--subtle); margin-top: 4px; font-size: 13px; }
+  dl#derived dt:first-child { margin-top: 0; }
+  dl#derived dd { margin: 0; }
+  .warnings { font-size: 14px; padding: 12px 16px; border: 1px solid var(--rule); }
+  .warnings:empty::before { content: "No warnings."; color: var(--subtle); font-style: italic; }
+  .warnings .warn { border-left: 2px solid var(--fg); padding-left: 10px; margin-bottom: 4px; font-style: italic; }
+  .warnings .invalid { border-left-color: var(--invalid); color: var(--invalid); font-style: normal; }
+  .select-row { display: block; font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+  .select-row > span { display: block; margin-bottom: 2px; }
+  .select-row select { display: block; width: 100%; box-sizing: border-box; font-family: inherit; font-size: 15px; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); padding: 5px 8px; min-height: 30px; }
+  @media (pointer: coarse) { .select-row select { font-size: 16px; min-height: 40px; padding: 8px 10px; } }
+  #blocking-fields .custom-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: end; margin-bottom: 6px; }
+  #blocking-fields .custom-row label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
+  #blocking-fields .custom-row input { font: inherit; font-size: 13px; padding: 3px 5px; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); width: 100%; box-sizing: border-box; }
+  #blocking-fields .custom-row button { font: inherit; background: none; border: 1px solid var(--rule); color: var(--subtle); cursor: pointer; padding: 3px 8px; }
+  #blocking-fields .custom-row button:hover { color: var(--invalid); border-color: var(--invalid); }
+  #blocking-fields .add-row-btn { font: inherit; background: var(--bg); color: var(--muted); border: 1px solid var(--rule); padding: 5px 10px; cursor: pointer; }
+  #blocking-fields .add-row-btn:hover { color: var(--fg); border-color: var(--fg); }
+  #blocking-fields .blocking-sub { display: block; font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+  #blocking-fields .blocking-sub > span { display: block; margin-bottom: 2px; }
+  #blocking-fields .blocking-sub input[type="number"] { display: block; width: 100%; box-sizing: border-box; font-family: inherit; font-size: 15px; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); padding: 5px 8px; min-height: 30px; }
+  #blocking-fields .blocking-check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); margin-bottom: 8px; cursor: pointer; min-height: 28px; }
+  #blocking-fields .blocking-check input { margin: 0; width: 16px; height: 16px; }
+  @media (max-width: 820px) {
+    .tool-page { padding: 14px 14px 30px; }
+    .tool-action-bar { gap: 8px; padding: 8px 10px; font-size: 13px; }
+    .tool-action-bar .info { flex-basis: 100%; order: 10; font-size: 13px; }
+    .tool-action-bar .sep { display: none; }
+    .tool-action-bar .lbl { display: none; }
+  }
+  @media (max-width: 520px) {
+    .tool-page { padding: 12px 12px 28px; }
+    .tool-action-bar .preset-picker { flex-basis: 100%; order: 11; }
+    .tool-action-bar select { width: 100%; min-height: 36px; }
+  }
+  @media (pointer: coarse) { .tool-action-bar select { min-height: 38px; padding: 6px 8px; font-size: 15px; } }
+</style>
+
+<script>
+  import { framingPieces, composeFramingCutSvg } from '../geometry/framing';
+  import { packInWorker } from '../geometry/core/packing';
+  import type { FramingParams, BlockingSpec, FramingMode } from '../geometry/framing';
+  import { bboxLayoutOnSheet } from '../geometry/core/packing/bbox-fallback';
+  import { getActiveMachine } from '../state/presets/machine';
+  import { getActiveMaterial } from '../state/presets/material';
+  import { listToolPresets, saveToolPreset, getActiveToolPreset, setActiveToolPresetId } from '../state/presets/tool';
+  import { downloadSvg } from '../lib/download';
+  import { makeReorderable } from '../lib/reorderable';
+  import { getCurrentTokens } from '../lib/diagram-tokens';
+  import { getLabels } from '../lib/framing-labels';
+  import { migrateWallFloorToFraming } from '../lib/preset-migration';
+
+  migrateWallFloorToFraming();
+
+  const form = document.getElementById('params') as HTMLFormElement;
+  const diagramSlot = document.getElementById('diagram-preview')!;
+  const cutSlot = document.getElementById('cutlist-preview')!;
+  const derivedEl = document.getElementById('derived')!;
+  const warningsEl = document.getElementById('warnings')!;
+  const blockingFieldsEl = document.getElementById('blocking-fields')!;
+  const blockingModeSel = document.getElementById('blocking-mode-select') as HTMLSelectElement;
+  const machineNameEl = document.getElementById('active-machine-name')!;
+  const materialNameEl = document.getElementById('active-material-name')!;
+  const presetSelect = document.getElementById('tool-preset-select') as HTMLSelectElement;
+  const saveBtn = document.getElementById('save-preset-btn') as HTMLButtonElement;
+  const saveDialog = document.getElementById('save-preset-dialog') as HTMLDialogElement;
+  const cutDownloadBtn = document.getElementById('download-cut-btn') as HTMLButtonElement;
+  const diagDownloadBtn = document.getElementById('download-diag-btn') as HTMLButtonElement;
+  const layoutEl = document.querySelector('.tool-layout') as HTMLElement;
+  const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn') as HTMLButtonElement;
+  const viewGrid = document.querySelector('.view-grid') as HTMLElement;
+  const viewToggleInputs = document.querySelectorAll<HTMLInputElement>('input[data-view-toggle]');
+  const viewSlots = document.querySelectorAll<HTMLElement>('[data-view-slot]');
+  const emptyState = document.getElementById('empty-state')!;
+  const modeSel = document.getElementById('framing-mode-select') as HTMLSelectElement;
+  const toolTitleEl = document.getElementById('tool-title');
+
+  const UI_KEY_SIDEBAR = 'mt:ui:framing:sidebar';
+  const UI_KEY_VIEWS = 'mt:ui:framing:views';
+  const UI_KEY_ORDER = 'mt:ui:framing:order';
+
+  type FramingOutput = {
+    cutSvg: string;
+    diagramSvg: string;
+    warnings: string[];
+    pieces3D: import('../geometry/core/types').Piece3D[];
+  };
+  let lastValidOutput: FramingOutput | null = null;
+  let realtimePackAbort: AbortController | null = null;
+  let lastTightHeightIn: number | null = null;
+  let recomputeSeq = 0;
+
+  function applyLabels(mode: FramingMode): void {
+    const L = getLabels(mode);
+    if (toolTitleEl) toolTitleEl.textContent = L.toolTitle;
+    document.title = `${L.toolTitle} - Makerspace Tools`;
+    setLabel('lengthIn', L.lengthLabel);
+    setLabel('spanIn', L.spanLabel);
+    setLabel('memberSpacingIn', L.memberSpacingLabel);
+    setLabel('memberDepthIn', L.memberDepthLabel);
+    setLabel('nMembersOverride', L.nOverrideValueLabel);
+    setCheckLabel('useOverride', L.nOverrideToggleLabel);
+    setLabel('endCapHeightIn', `${L.endCapNoun.charAt(0).toUpperCase()}${L.endCapNoun.slice(1)} height (in)`);
+    setCheckLabel('endCapBDoubled', L.doubleEndCapBLabel);
+    setGroupLabel('grp-members', L.memberPlural.charAt(0).toUpperCase() + L.memberPlural.slice(1));
+    setGroupLabel('grp-end-caps', `${L.endCapNoun.charAt(0).toUpperCase()}${L.endCapNoun.slice(1)}s`);
+  }
+
+  function setGroupLabel(groupId: string, text: string): void {
+    const grp = document.getElementById(groupId);
+    if (!grp) return;
+    const summary = grp.querySelector(':scope > summary');
+    if (summary) summary.textContent = text;
+  }
+
+  function setLabel(fieldName: string, text: string): void {
+    const el = form.elements.namedItem(fieldName) as HTMLInputElement | null;
+    if (!el) return;
+    const label = el.closest('label') ?? el.parentElement?.querySelector('label');
+    if (!label) return;
+    const span = label.querySelector('span:first-child') ?? label.querySelector('span');
+    if (span) span.textContent = text;
+  }
+
+  function setCheckLabel(fieldName: string, text: string): void {
+    const el = form.elements.namedItem(fieldName) as HTMLInputElement | null;
+    if (!el) return;
+    const label = el.closest('label');
+    if (!label) return;
+    const textNodes = Array.from(label.childNodes).filter((n) => n.nodeType === Node.TEXT_NODE);
+    const target = textNodes.find((n) => (n.textContent ?? '').trim().length > 0);
+    if (target) target.textContent = ` ${text}`;
+    else label.appendChild(document.createTextNode(` ${text}`));
+  }
+
+  function readBlockingSpec(): BlockingSpec {
+    const mode = blockingModeSel.value as BlockingSpec['mode'];
+    if (mode === 'none') return { mode: 'none' };
+    if (mode === 'half') {
+      const pf = parseFloat((blockingFieldsEl.querySelector('[name=positionFraction]') as HTMLInputElement)?.value ?? '0.5');
+      return { mode: 'half', positionFraction: pf };
+    }
+    if (mode === 'staggered') {
+      const dc = parseInt((blockingFieldsEl.querySelector('[name=denseCount]') as HTMLInputElement)?.value ?? '3', 10);
+      const sc = parseInt((blockingFieldsEl.querySelector('[name=sparseCount]') as HTMLInputElement)?.value ?? '2', 10);
+      const sd = (blockingFieldsEl.querySelector('[name=startDense]') as HTMLInputElement)?.checked ?? true;
+      return { mode: 'staggered', denseCount: dc, sparseCount: sc, startDense: sd };
+    }
+    const rowEls = Array.from(blockingFieldsEl.querySelectorAll('[data-custom-row]'));
+    const rows = rowEls.map((el) => ({
+      bayIndex: parseInt((el.querySelector('[name=bayIndex]') as HTMLInputElement).value, 10),
+      positionFraction: parseFloat((el.querySelector('[name=positionFraction]') as HTMLInputElement).value),
+    }));
+    return { mode: 'custom', rows };
+  }
+
+  function renderBlockingFields(): void {
+    const mode = blockingModeSel.value;
+    blockingFieldsEl.replaceChildren();
+    if (mode === 'half') {
+      blockingFieldsEl.innerHTML = `
+        <label class="blocking-sub"><span>Position fraction (0..1 along span)</span>
+          <input type="number" name="positionFraction" value="0.5" step="0.05" min="0.1" max="0.9"/>
+        </label>`;
+    } else if (mode === 'staggered') {
+      blockingFieldsEl.innerHTML = `
+        <label class="blocking-sub"><span>Dense count</span>
+          <input type="number" name="denseCount" value="3" step="1" min="1" max="10"/>
+        </label>
+        <label class="blocking-sub"><span>Sparse count</span>
+          <input type="number" name="sparseCount" value="2" step="1" min="0" max="10"/>
+        </label>
+        <label class="blocking-check"><input type="checkbox" name="startDense" checked/> Start with dense bay</label>`;
+    } else if (mode === 'custom') {
+      blockingFieldsEl.innerHTML = `<div id="custom-rows"></div><button type="button" class="add-row-btn" id="add-custom-row">+ Add row</button>`;
+      document.getElementById('add-custom-row')?.addEventListener('click', () => {
+        addCustomRow();
+        recompute();
+      });
+    }
+  }
+
+  function addCustomRow(bayIndex = -1, positionFraction = 0.5): void {
+    const rowsEl = document.getElementById('custom-rows');
+    if (!rowsEl) return;
+    const row = document.createElement('div');
+    row.dataset.customRow = '';
+    row.className = 'custom-row';
+    row.innerHTML = `
+      <label>Bay <input type="number" name="bayIndex" value="${bayIndex}" step="1" min="-1"/></label>
+      <label>Fraction <input type="number" name="positionFraction" value="${positionFraction}" step="0.05" min="0.05" max="0.95"/></label>
+      <button type="button" data-remove>x</button>
+    `;
+    row.querySelector('[data-remove]')?.addEventListener('click', () => { row.remove(); recompute(); });
+    rowsEl.appendChild(row);
+  }
+
+  function readParams(): FramingParams {
+    const fd = new FormData(form);
+    const num = (k: string) => Number(fd.get(k));
+    const useOverride = (form.elements.namedItem('useOverride') as HTMLInputElement).checked;
+    return {
+      mode: modeSel.value as FramingMode,
+      lengthIn: num('lengthIn'),
+      spanIn: num('spanIn'),
+      memberSpacingIn: num('memberSpacingIn'),
+      memberDepthIn: num('memberDepthIn'),
+      nMembersOverride: useOverride ? num('nMembersOverride') : null,
+      endCapHeightIn: num('endCapHeightIn'),
+      endCapBDoubled: (form.elements.namedItem('endCapBDoubled') as HTMLInputElement).checked,
+      blocking: readBlockingSpec(),
+      blockingThicknessIn: num('blockingThicknessIn'),
+      stockThicknessIn: num('stockThicknessIn'),
+      sheetWidthIn: num('sheetWidthIn'),
+      maxPieceLengthIn: num('maxPieceLengthIn'),
+      marginIn: num('marginIn'),
+      pieceSpacingIn: num('pieceSpacingIn'),
+    };
+  }
+
+  function validateParams(p: FramingParams): string | null {
+    const checks: Array<[string, number, number]> = [
+      ['length', p.lengthIn, 0.5],
+      ['span', p.spanIn, 0.5],
+      ['member spacing', p.memberSpacingIn, 0.125],
+      ['member depth', p.memberDepthIn, 0.0625],
+      ['end cap height', p.endCapHeightIn, 0.0625],
+      ['blocking thickness', p.blockingThicknessIn, 0.0625],
+      ['stock thickness', p.stockThicknessIn, 0.0625],
+      ['sheet width', p.sheetWidthIn, 1],
+      ['max piece length', p.maxPieceLengthIn, 1],
+      ['margin', p.marginIn, 0],
+    ];
+    for (const [name, val, min] of checks) {
+      if (!Number.isFinite(val) || val < min) return `${name} must be at least ${min}`;
+    }
+    const ps = p.pieceSpacingIn;
+    if (ps !== undefined && (!Number.isFinite(ps) || ps < 0)) return 'piece spacing must be 0 or greater';
+    const endCapTotal = p.endCapHeightIn * (p.endCapBDoubled ? 2 : 1) + p.endCapHeightIn;
+    if (endCapTotal >= p.spanIn) return 'end caps exceed span';
+    if (p.marginIn * 2 >= p.sheetWidthIn) return 'margin too large for sheet width';
+    if (p.nMembersOverride !== null) {
+      if (!Number.isInteger(p.nMembersOverride) || p.nMembersOverride < 2 || p.nMembersOverride > 100) {
+        return 'member count must be a whole number from 2 to 100';
+      }
+    }
+    return null;
+  }
+
+  function populateForm(p: FramingParams): void {
+    const setVal = (name: string, v: number | null | undefined) => {
+      if (v === undefined) return;
+      const el = form.elements.namedItem(name) as HTMLInputElement;
+      if (el) el.value = String(v ?? '');
+    };
+    modeSel.value = p.mode;
+    setVal('lengthIn', p.lengthIn);
+    setVal('spanIn', p.spanIn);
+    setVal('memberSpacingIn', p.memberSpacingIn);
+    setVal('memberDepthIn', p.memberDepthIn);
+    const useOverride = form.elements.namedItem('useOverride') as HTMLInputElement;
+    useOverride.checked = p.nMembersOverride !== null;
+    setVal('nMembersOverride', p.nMembersOverride ?? 6);
+    setVal('endCapHeightIn', p.endCapHeightIn);
+    (form.elements.namedItem('endCapBDoubled') as HTMLInputElement).checked = p.endCapBDoubled;
+    setVal('blockingThicknessIn', p.blockingThicknessIn);
+    setVal('stockThicknessIn', p.stockThicknessIn);
+    setVal('sheetWidthIn', p.sheetWidthIn);
+    setVal('maxPieceLengthIn', p.maxPieceLengthIn);
+    setVal('marginIn', p.marginIn);
+    setVal('pieceSpacingIn', p.pieceSpacingIn ?? 0.06);
+    blockingModeSel.value = p.blocking.mode;
+    renderBlockingFields();
+    if (p.blocking.mode === 'custom') {
+      for (const r of p.blocking.rows) addCustomRow(r.bayIndex, r.positionFraction);
+    } else if (p.blocking.mode === 'half') {
+      const pfEl = blockingFieldsEl.querySelector('[name=positionFraction]') as HTMLInputElement | null;
+      if (pfEl) pfEl.value = String(p.blocking.positionFraction);
+    } else if (p.blocking.mode === 'staggered') {
+      const dcEl = blockingFieldsEl.querySelector('[name=denseCount]') as HTMLInputElement | null;
+      const scEl = blockingFieldsEl.querySelector('[name=sparseCount]') as HTMLInputElement | null;
+      const sdEl = blockingFieldsEl.querySelector('[name=startDense]') as HTMLInputElement | null;
+      if (dcEl) dcEl.value = String(p.blocking.denseCount);
+      if (scEl) scEl.value = String(p.blocking.sparseCount);
+      if (sdEl) sdEl.checked = p.blocking.startDense;
+    }
+    applyLabels(p.mode);
+  }
+
+  type ViewerHandle = {
+    setPieces: (p: import('../geometry/core/types').Piece3D[]) => void;
+    setTokens: (t: import('../lib/diagram-tokens').DiagramTokens, opts?: { animate?: boolean; durationMs?: number }) => void;
+    resize: () => void;
+    destroy: () => void;
+  };
+  let viewer3DPromise: Promise<ViewerHandle | null> | null = null;
+  function ensureViewer3D(): Promise<ViewerHandle | null> {
+    if (viewer3DPromise) return viewer3DPromise;
+    const host = document.getElementById('view3d-host') as HTMLElement | null;
+    if (!host) return Promise.resolve(null);
+    viewer3DPromise = import('../lib/roof-viewer-3d')
+      .then((mod) => mod.mountRoofViewer(host, getCurrentTokens()))
+      .catch((err) => {
+        viewer3DPromise = null;
+        console.error('3D viewer failed to mount', err);
+        return null;
+      });
+    return viewer3DPromise;
+  }
+  async function updateViewer3D(): Promise<void> {
+    const slot = document.querySelector('[data-view-slot="view3d"]') as HTMLElement | null;
+    if (!slot || slot.hidden) return;
+    const v = await ensureViewer3D();
+    if (!v || !lastValidOutput) return;
+    v.setPieces(lastValidOutput.pieces3D);
+    v.resize();
+  }
+
+  function appendWarning(parent: HTMLElement, text: string, invalid = false): void {
+    const d = document.createElement('div');
+    d.className = invalid ? 'warn invalid' : 'warn';
+    d.textContent = text;
+    parent.appendChild(d);
+  }
+
+  function renderWarnings(base: string[]): void {
+    warningsEl.replaceChildren();
+    for (const w of base) appendWarning(warningsEl, `note: ${w}`);
+  }
+
+  function cutListVisible(): boolean {
+    const slot = document.querySelector('[data-view-slot="cutlist"]') as HTMLElement | null;
+    return !!slot && !slot.hidden;
+  }
+
+  function recompute(): void {
+    if (recomputeDebounce !== null) { window.clearTimeout(recomputeDebounce); recomputeDebounce = null; }
+    const p = readParams();
+    const err = validateParams(p);
+    if (err) {
+      warningsEl.replaceChildren();
+      appendWarning(warningsEl, `fix this to refresh preview: ${err}`, true);
+      return;
+    }
+
+    const piecesResult = framingPieces(p);
+    const bbox = bboxLayoutOnSheet(piecesResult.pieces, piecesResult.sheet);
+    const cutSvg = composeFramingCutSvg(bbox.placed, bbox.totalHeightIn, p.sheetWidthIn);
+    const out: FramingOutput = {
+      cutSvg,
+      diagramSvg: piecesResult.diagramSvg,
+      warnings: [...piecesResult.warnings, ...bbox.warnings],
+      pieces3D: piecesResult.pieces3D,
+    };
+    lastValidOutput = out;
+    diagramSlot.innerHTML = out.diagramSvg;
+    if (cutListVisible()) cutSlot.innerHTML = cutSvg;
+
+    const L = getLabels(p.mode);
+    const nMembers = piecesResult.pieces.filter((x) => x.placement?.kind === 'framing-member').length;
+    const nBlocks = piecesResult.pieces.filter((x) => x.placement?.kind === 'framing-block').length;
+    const nEndCapSegs = piecesResult.pieces.filter((x) => x.placement?.kind === 'framing-end-cap').length;
+    const nGussets = piecesResult.pieces.filter((x) => x.placement?.kind === 'splice-gusset').length;
+    derivedEl.innerHTML = `
+      <dt>${L.memberPlural.charAt(0).toUpperCase()}${L.memberPlural.slice(1)}</dt><dd>${nMembers}</dd>
+      <dt>${L.endCapNoun.charAt(0).toUpperCase()}${L.endCapNoun.slice(1)} segments</dt><dd>${nEndCapSegs}</dd>
+      <dt>Splice gussets</dt><dd>${nGussets}</dd>
+      <dt>Blocks</dt><dd>${nBlocks}</dd>
+      <dt>Sheet</dt><dd>${bbox.totalHeightIn.toFixed(2)}&Prime; tall &times; ${p.sheetWidthIn.toFixed(2)}&Prime; wide</dd>
+    `;
+    renderWarnings(out.warnings);
+    scheduleFitLayout();
+    void updateViewer3D();
+
+    if (realtimePackAbort) realtimePackAbort.abort();
+    realtimePackAbort = new AbortController();
+    const signal = realtimePackAbort.signal;
+
+    const stableMinHeightIn = Math.min(lastTightHeightIn ?? bbox.totalHeightIn, bbox.totalHeightIn);
+    const seq = ++recomputeSeq;
+    let pendingPartial: { placed: import('../geometry/core/types').PlacedPiece[]; totalHeightIn: number } | null = null;
+    let partialRafScheduled = false;
+    const flushPartial = () => {
+      partialRafScheduled = false;
+      if (!pendingPartial || seq !== recomputeSeq || !cutListVisible()) return;
+      const h = Math.max(pendingPartial.totalHeightIn, stableMinHeightIn);
+      const svg = composeFramingCutSvg(pendingPartial.placed, h, p.sheetWidthIn);
+      if (cutListVisible()) cutSlot.innerHTML = svg;
+      if (lastValidOutput) lastValidOutput = { ...lastValidOutput, cutSvg: svg };
+      pendingPartial = null;
+    };
+
+    void packInWorker(piecesResult.pieces, piecesResult.sheet, {
+      effort: 'realtime',
+      chunkSize: 4,
+      signal,
+      onPartial: (partial) => {
+        if (seq !== recomputeSeq) return;
+        pendingPartial = partial;
+        if (!partialRafScheduled) {
+          partialRafScheduled = true;
+          requestAnimationFrame(flushPartial);
+        }
+      },
+    }).then((res) => {
+      if (seq !== recomputeSeq) return;
+      if (res.packer !== 'bbox-fallback') {
+        const tighter = composeFramingCutSvg(res.placed, res.totalHeightIn, p.sheetWidthIn);
+        if (cutListVisible()) cutSlot.innerHTML = tighter;
+        if (lastValidOutput) lastValidOutput = { ...lastValidOutput, cutSvg: tighter, warnings: [...piecesResult.warnings, ...res.warnings] };
+        lastTightHeightIn = res.totalHeightIn;
+      }
+      renderWarnings([...piecesResult.warnings, ...res.warnings]);
+    }).catch((err) => {
+      if ((err as Error)?.name === 'AbortError') return;
+      console.error('pack worker error', err);
+      appendWarning(warningsEl, 'smart packing failed; using the simple layout', true);
+    });
+  }
+
+  const MIN_COL_WIDTH_PX = 380;
+  const VIEWPORT_BREATHING_PX = 32;
+
+  let fitRaf: number | null = null;
+  function scheduleFitLayout(): void {
+    if (fitRaf !== null) return;
+    fitRaf = requestAnimationFrame(() => { fitRaf = null; fitLayout(); });
+  }
+
+  function fitLayout(): void {
+    const visible = [...viewGrid.querySelectorAll<HTMLElement>(':scope > [data-view-slot]:not([hidden])')];
+    if (visible.length === 0) return;
+    const containerWidth = viewGrid.offsetWidth;
+    const maxColsByWidth = Math.max(1, Math.floor(containerWidth / MIN_COL_WIDTH_PX));
+    const maxCols = Math.min(visible.length, maxColsByWidth);
+    let cols = 1;
+    viewGrid.style.gridTemplateColumns = 'minmax(0, 1fr)';
+    void viewGrid.offsetHeight;
+    const availableHeight = window.innerHeight - viewGrid.getBoundingClientRect().top - VIEWPORT_BREATHING_PX;
+    while (cols < maxCols && viewGrid.offsetHeight > availableHeight) {
+      cols++;
+      viewGrid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+      void viewGrid.offsetHeight;
+    }
+  }
+
+  function refreshActivePresetDisplay(): void {
+    machineNameEl.textContent = getActiveMachine().name;
+    materialNameEl.textContent = getActiveMaterial().name;
+  }
+
+  function refreshToolPresetSelect(): void {
+    const list = listToolPresets<FramingParams>('framing');
+    const active = getActiveToolPreset<FramingParams>('framing');
+    presetSelect.replaceChildren();
+    for (const pr of list) {
+      const opt = document.createElement('option');
+      opt.value = pr.id;
+      opt.textContent = `${pr.name}${pr.builtin ? '' : ' (saved)'}`;
+      if (pr.id === active.id) opt.selected = true;
+      presetSelect.appendChild(opt);
+    }
+  }
+
+  function applyViewVisibility(): void {
+    const visible = new Set<string>();
+    viewToggleInputs.forEach((input) => { if (input.checked) visible.add(input.dataset.viewToggle!); });
+    viewSlots.forEach((slot) => { slot.hidden = !visible.has(slot.dataset.viewSlot!); });
+    emptyState.hidden = visible.size > 0;
+    try { localStorage.setItem(UI_KEY_VIEWS, JSON.stringify([...visible])); } catch {}
+    scheduleFitLayout();
+  }
+
+  function loadViewVisibility(): void {
+    try {
+      const raw = localStorage.getItem(UI_KEY_VIEWS);
+      if (raw === null) return;
+      const arr: unknown = JSON.parse(raw);
+      if (!Array.isArray(arr)) return;
+      const set = new Set(arr.filter((v): v is string => typeof v === 'string'));
+      viewToggleInputs.forEach((input) => { input.checked = set.has(input.dataset.viewToggle!); });
+    } catch {}
+  }
+
+  function applySidebarState(): void {
+    const isOpen = layoutEl.dataset.sidebar === 'open';
+    toggleSidebarBtn.setAttribute('aria-pressed', String(isOpen));
+    try { localStorage.setItem(UI_KEY_SIDEBAR, isOpen ? 'open' : 'closed'); } catch {}
+  }
+
+  function loadSidebarState(): void {
+    try {
+      const v = localStorage.getItem(UI_KEY_SIDEBAR);
+      if (v === 'closed') layoutEl.dataset.sidebar = 'closed';
+    } catch {}
+  }
+
+  function loadSlotOrder(): void {
+    try {
+      const raw = localStorage.getItem(UI_KEY_ORDER);
+      if (raw === null) return;
+      const order: unknown = JSON.parse(raw);
+      if (!Array.isArray(order)) return;
+      const byKey = new Map<string, HTMLElement>();
+      viewGrid.querySelectorAll<HTMLElement>('[data-view-slot]').forEach((s) => { byKey.set(s.dataset.viewSlot!, s); });
+      for (const v of order) { if (typeof v !== 'string') continue; const el = byKey.get(v); if (el) viewGrid.appendChild(el); }
+    } catch {}
+  }
+
+  viewToggleInputs.forEach((input) => {
+    input.addEventListener('change', () => {
+      applyViewVisibility();
+      if (input.dataset.viewToggle === 'view3d' && input.checked) void updateViewer3D();
+      if (input.dataset.viewToggle === 'cutlist' && input.checked) recompute();
+    });
+  });
+
+  toggleSidebarBtn.addEventListener('click', () => {
+    layoutEl.dataset.sidebar = layoutEl.dataset.sidebar === 'open' ? 'closed' : 'open';
+    applySidebarState();
+    scheduleFitLayout();
+    setTimeout(scheduleFitLayout, 250);
+  });
+
+  window.addEventListener('resize', scheduleFitLayout);
+
+  blockingModeSel.addEventListener('change', () => { renderBlockingFields(); recompute(); });
+
+  modeSel.addEventListener('change', () => {
+    const mode = modeSel.value as FramingMode;
+    const targetId = mode === 'wall' ? 'framing-1-18-wall' : 'framing-1-18-floor';
+    setActiveToolPresetId('framing', targetId);
+    refreshToolPresetSelect();
+    populateForm(getActiveToolPreset<FramingParams>('framing').params);
+    recompute();
+  });
+
+  presetSelect.addEventListener('change', () => {
+    setActiveToolPresetId('framing', presetSelect.value);
+    const active = getActiveToolPreset<FramingParams>('framing');
+    populateForm(active.params);
+    recompute();
+  });
+
+  saveBtn.addEventListener('click', () => { saveDialog.showModal(); });
+  saveDialog.addEventListener('click', (e) => { if (e.target === saveDialog) saveDialog.close(); });
+  saveDialog.addEventListener('close', () => {
+    if (saveDialog.returnValue !== 'confirm') return;
+    const nameInput = saveDialog.querySelector('input[name="preset-name"]') as HTMLInputElement | null;
+    if (!nameInput) return;
+    const name = nameInput.value.trim();
+    if (!name) return;
+    const id = `user-framing-${Date.now()}`;
+    saveToolPreset<FramingParams>('framing', {
+      id, toolSlug: 'framing', name, params: readParams(), createdAt: new Date().toISOString(),
+    });
+    setActiveToolPresetId('framing', id);
+    nameInput.value = '';
+    refreshToolPresetSelect();
+  });
+
+  cutDownloadBtn.addEventListener('click', () => {
+    const presetName = getActiveToolPreset<FramingParams>('framing').name.replace(/[^a-z0-9]+/gi, '-');
+    const date = new Date().toISOString().slice(0, 10);
+    if (!lastValidOutput) return;
+    const mode = readParams().mode;
+    downloadSvg(lastValidOutput.cutSvg, `framing-${mode}-cutlist-${presetName}-${date}.svg`);
+  });
+
+  diagDownloadBtn.addEventListener('click', () => {
+    const presetName = getActiveToolPreset<FramingParams>('framing').name.replace(/[^a-z0-9]+/gi, '-');
+    const date = new Date().toISOString().slice(0, 10);
+    if (!lastValidOutput) return;
+    const mode = readParams().mode;
+    downloadSvg(lastValidOutput.diagramSvg, `framing-${mode}-diagram-${presetName}-${date}.svg`);
+  });
+
+  let recomputeDebounce: number | null = null;
+  function debouncedRecompute(): void {
+    if (recomputeDebounce !== null) window.clearTimeout(recomputeDebounce);
+    recomputeDebounce = window.setTimeout(() => { recomputeDebounce = null; recompute(); }, 200);
+  }
+  form.addEventListener('input', debouncedRecompute);
+  form.addEventListener('change', debouncedRecompute);
+
+  document.getElementById('reset-btn')!.addEventListener('click', () => {
+    const active = getActiveToolPreset<FramingParams>('framing');
+    populateForm(active.params);
+    recompute();
+  });
+
+  // URL mode preselect (e.g. /framing?mode=floor) — picks first matching preset
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlMode = urlParams.get('mode');
+  if (urlMode === 'wall' || urlMode === 'floor') {
+    const targetId = urlMode === 'wall' ? 'framing-1-18-wall' : 'framing-1-18-floor';
+    setActiveToolPresetId('framing', targetId);
+  }
+
+  loadSidebarState();
+  loadViewVisibility();
+  loadSlotOrder();
+  applySidebarState();
+  applyViewVisibility();
+
+  makeReorderable(viewGrid, {
+    onReorder: (keys) => { try { localStorage.setItem(UI_KEY_ORDER, JSON.stringify(keys)); } catch {} scheduleFitLayout(); },
+  });
+
+  refreshActivePresetDisplay();
+  refreshToolPresetSelect();
+  populateForm(getActiveToolPreset<FramingParams>('framing').params);
+  recompute();
+
+  (window as unknown as { __dbg: () => unknown }).__dbg = () => ({ pieces3D: lastValidOutput?.pieces3D ?? [] });
+
+  let themeSeq = 0;
+  const themeObserver = new MutationObserver(async () => {
+    if (!viewer3DPromise) return;
+    const mySeq = ++themeSeq;
+    const v = await viewer3DPromise;
+    if (!v || mySeq !== themeSeq) return;
+    v.setTokens(getCurrentTokens());
+  });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+</script>
