@@ -12,5 +12,9 @@ export default defineConfig({
     prefetchAll: true,
     defaultStrategy: 'viewport',
   },
+  redirects: {
+    '/wall': '/framing?mode=wall',
+    '/floor': '/framing?mode=floor',
+  },
   integrations: [sitemap()],
 });

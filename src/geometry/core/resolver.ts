@@ -1,8 +1,6 @@
 import type { Piece, Piece3D } from './types';
 import type { Building, DormerGablePlacement, DormerShedPlacement } from '../building/types';
 import type { RoofUnit } from '../roof/types';
-import type { WallUnit, BlockRow } from '../wall/types';
-import type { FloorUnit, FloorBlockRow } from '../floor/types';
 import type { FramingUnit, BlockRow as FramingBlockRow } from '../framing/types';
 import { computeRoofGeometry } from '../roof/compute';
 import { computeRoofCounts } from '../roof/cutlist';
@@ -47,27 +45,6 @@ export interface ShedDormerFrame {
 
 export type DormerFrame = GableDormerFrame | ShedDormerFrame;
 
-export interface WallFrame {
-  unit: WallUnit;
-  translation: Vec3;
-  rotationZRadians: number;
-  studPositionsIn: number[];
-  nTopPlateLayers: number;
-  interPlateHeightIn: number;
-  bayWidthIn: number;
-  blockRows: ReadonlyArray<BlockRow>;
-}
-
-export interface FloorFrame {
-  unit: FloorUnit;
-  translation: Vec3;
-  rotationZRadians: number;
-  joistPositionsIn: number[];
-  interRimDepthIn: number;
-  bayWidthIn: number;
-  blockRows: ReadonlyArray<FloorBlockRow>;
-}
-
 export interface FramingFrame {
   unit: FramingUnit;
   translation: Vec3;
@@ -83,8 +60,6 @@ export interface ResolveContext {
   building: Building;
   unitFrames: Map<string, UnitFrame>;
   dormerFrames: Map<string, DormerFrame>;
-  wallFrames: Map<string, WallFrame>;
-  floorFrames: Map<string, FloorFrame>;
   framingFrames: Map<string, FramingFrame>;
 }
 
@@ -218,45 +193,7 @@ export function buildContext(b: Building, opts: RoofCutlistOptions): ResolveCont
     }
   }
 
-  return { building: b, unitFrames, dormerFrames, wallFrames: new Map(), floorFrames: new Map(), framingFrames: new Map() };
-}
-
-function applyWallFrame(
-  localOrigin: Vec3,
-  localU: Vec3,
-  localV: Vec3,
-  frame: WallFrame,
-): { origin: Vec3; uAxis: Vec3; vAxis: Vec3 } {
-  const angle = frame.rotationZRadians;
-  if (angle === 0 &&
-      frame.translation[0] === 0 &&
-      frame.translation[1] === 0 &&
-      frame.translation[2] === 0) {
-    return { origin: localOrigin, uAxis: localU, vAxis: localV };
-  }
-  const origin = add3(rotateZ(localOrigin, angle), frame.translation);
-  const uAxis = rotateZ(localU, angle);
-  const vAxis = rotateZ(localV, angle);
-  return { origin, uAxis, vAxis };
-}
-
-function applyFloorFrame(
-  localOrigin: Vec3,
-  localU: Vec3,
-  localV: Vec3,
-  frame: FloorFrame,
-): { origin: Vec3; uAxis: Vec3; vAxis: Vec3 } {
-  const angle = frame.rotationZRadians;
-  if (angle === 0 &&
-      frame.translation[0] === 0 &&
-      frame.translation[1] === 0 &&
-      frame.translation[2] === 0) {
-    return { origin: localOrigin, uAxis: localU, vAxis: localV };
-  }
-  const origin = add3(rotateZ(localOrigin, angle), frame.translation);
-  const uAxis = rotateZ(localU, angle);
-  const vAxis = rotateZ(localV, angle);
-  return { origin, uAxis, vAxis };
+  return { building: b, unitFrames, dormerFrames, framingFrames: new Map() };
 }
 
 function applyFramingFrame(
@@ -519,95 +456,6 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
         extrudeDepthIn: piece.extrudeDepthIn ?? f.stockThicknessIn,
       };
     }
-    case 'wall-bottom-plate': {
-      const f = ctx.wallFrames.get(p.wallId);
-      if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
-      const xLocal = -f.unit.stockThicknessIn / 2 + (p.segmentStartIn ?? 0);
-      const localOrigin: Vec3 = [xLocal, 0, 0];
-      const localU: Vec3 = [1, 0, 0];
-      const localV: Vec3 = [0, 1, 0];
-      const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
-      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.bottomPlateHeightIn };
-    }
-    case 'wall-top-plate': {
-      const f = ctx.wallFrames.get(p.wallId);
-      if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
-      const z = f.unit.heightIn - (p.layer + 1) * f.unit.topPlateHeightIn;
-      const xLocal = -f.unit.stockThicknessIn / 2 + (p.segmentStartIn ?? 0);
-      const localOrigin: Vec3 = [xLocal, 0, z];
-      const localU: Vec3 = [1, 0, 0];
-      const localV: Vec3 = [0, 1, 0];
-      const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
-      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.topPlateHeightIn };
-    }
-    case 'wall-stud': {
-      const f = ctx.wallFrames.get(p.wallId);
-      if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
-      const x = f.studPositionsIn[p.indexAlongWall] - f.unit.stockThicknessIn / 2;
-      const localOrigin: Vec3 = [x, 0, f.unit.bottomPlateHeightIn];
-      const localU: Vec3 = [1, 0, 0];
-      const localV: Vec3 = [0, 1, 0];
-      const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
-      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.interPlateHeightIn };
-    }
-    case 'wall-block': {
-      const f = ctx.wallFrames.get(p.wallId);
-      if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
-      const row = f.blockRows[p.rowIndex];
-      const x = row.spanFullWidth ? 0 : f.studPositionsIn[row.bayIndex] + f.unit.stockThicknessIn / 2;
-      const z = f.unit.bottomPlateHeightIn + row.heightFromBottomPlateIn;
-      const localOrigin: Vec3 = [x, 0, z];
-      const localU: Vec3 = [1, 0, 0];
-      const localV: Vec3 = [0, 1, 0];
-      const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
-      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.blockingThicknessIn };
-    }
-    case 'wall-stud-mark': {
-      const f = ctx.wallFrames.get(p.wallId);
-      if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
-      const x = f.studPositionsIn[p.indexAlongWall] - f.unit.stockThicknessIn / 2;
-      const z = p.plate === 'bottom'
-        ? f.unit.bottomPlateHeightIn
-        : f.unit.heightIn - f.nTopPlateLayers * f.unit.topPlateHeightIn;
-      const localOrigin: Vec3 = [x, 0, z];
-      const localU: Vec3 = [1, 0, 0];
-      const localV: Vec3 = [0, 1, 0];
-      const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
-      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: 0 };
-    }
-    case 'floor-rim': {
-      const f = ctx.floorFrames.get(p.floorId);
-      if (!f) throw new Error(`resolvePiece: no floor frame for ${p.floorId}`);
-      const y = p.side === 'front' ? 0 : f.unit.depthIn - f.unit.rimThicknessIn;
-      const xLocal = -f.unit.stockThicknessIn / 2 + (p.segmentStartIn ?? 0);
-      const localOrigin: Vec3 = [xLocal, y, 0];
-      const localU: Vec3 = [1, 0, 0];
-      const localV: Vec3 = [0, 1, 0];
-      const { origin, uAxis, vAxis } = applyFloorFrame(localOrigin, localU, localV, f);
-      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.joistDepthIn };
-    }
-    case 'floor-joist': {
-      const f = ctx.floorFrames.get(p.floorId);
-      if (!f) throw new Error(`resolvePiece: no floor frame for ${p.floorId}`);
-      const x = f.joistPositionsIn[p.indexAlongWidth] - f.unit.stockThicknessIn / 2;
-      const localOrigin: Vec3 = [x, f.unit.rimThicknessIn, 0];
-      const localU: Vec3 = [1, 0, 0];
-      const localV: Vec3 = [0, 1, 0];
-      const { origin, uAxis, vAxis } = applyFloorFrame(localOrigin, localU, localV, f);
-      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.joistDepthIn };
-    }
-    case 'floor-block': {
-      const f = ctx.floorFrames.get(p.floorId);
-      if (!f) throw new Error(`resolvePiece: no floor frame for ${p.floorId}`);
-      const row = f.blockRows[p.rowIndex];
-      const x = row.spanFullWidth ? 0 : f.joistPositionsIn[row.bayIndex] + f.unit.stockThicknessIn / 2;
-      const y = f.unit.rimThicknessIn + row.distanceFromFrontRimIn - f.unit.blockingThicknessIn / 2;
-      const localOrigin: Vec3 = [x, y, 0];
-      const localU: Vec3 = [1, 0, 0];
-      const localV: Vec3 = [0, 1, 0];
-      const { origin, uAxis, vAxis } = applyFloorFrame(localOrigin, localU, localV, f);
-      return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.joistDepthIn };
-    }
     case 'framing-end-cap': {
       const f = ctx.framingFrames.get(p.framingId);
       if (!f) throw new Error(`resolvePiece: no framing frame for ${p.framingId}`);
@@ -664,39 +512,6 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       }
     }
     case 'splice-gusset': {
-      if (p.hostKind === 'wall-plate') {
-        const f = ctx.wallFrames.get(p.hostId);
-        if (!f) throw new Error(`resolvePiece: no wall frame for ${p.hostId}`);
-        const isTopLayer = p.hostSubKey.startsWith('top:');
-        const layer = isTopLayer ? Number(p.hostSubKey.split(':')[1] ?? '0') : 0;
-        const plateHeightIn = isTopLayer ? f.unit.topPlateHeightIn : f.unit.bottomPlateHeightIn;
-        const plateBottomZ = isTopLayer
-          ? f.unit.heightIn - (layer + 1) * f.unit.topPlateHeightIn
-          : 0;
-        const plateTopZ = plateBottomZ + plateHeightIn;
-        const stock = f.unit.stockThicknessIn;
-        const z = p.spliceFace === 'top' ? plateTopZ : plateBottomZ - stock;
-        const xLocal = -f.unit.stockThicknessIn / 2 + p.positionAlongIn;
-        const localOrigin: Vec3 = [xLocal, 0, z];
-        const localU: Vec3 = [1, 0, 0];
-        const localV: Vec3 = [0, 1, 0];
-        const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
-        return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: stock };
-      }
-      if (p.hostKind === 'floor-rim') {
-        const f = ctx.floorFrames.get(p.hostId);
-        if (!f) throw new Error(`resolvePiece: no floor frame for ${p.hostId}`);
-        const isFrontRim = p.hostSubKey === 'front';
-        const yRim = isFrontRim ? 0 : f.unit.depthIn - f.unit.rimThicknessIn;
-        const stock = f.unit.stockThicknessIn;
-        const z = p.spliceFace === 'top' ? f.unit.joistDepthIn : -stock;
-        const xLocal = -f.unit.stockThicknessIn / 2 + p.positionAlongIn;
-        const localOrigin: Vec3 = [xLocal, yRim, z];
-        const localU: Vec3 = [1, 0, 0];
-        const localV: Vec3 = [0, 1, 0];
-        const { origin, uAxis, vAxis } = applyFloorFrame(localOrigin, localU, localV, f);
-        return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: stock };
-      }
       const f = ctx.framingFrames.get(p.hostId);
       if (!f) throw new Error(`resolvePiece: no framing frame for ${p.hostId}`);
       const stock = f.unit.stockThicknessIn;

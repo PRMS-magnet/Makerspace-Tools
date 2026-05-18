@@ -31,8 +31,6 @@ export function computeFramingPieces3D(p: FramingParams, framingId: string): Pie
     building: { units: [], intersections: [], sheetWidthIn: 0, maxPieceLengthIn: 0, marginIn: 0 },
     unitFrames: new Map(),
     dormerFrames: new Map(),
-    wallFrames: new Map(),
-    floorFrames: new Map(),
     framingFrames: new Map([[framingId, frame]]),
   };
 

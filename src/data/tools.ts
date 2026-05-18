@@ -16,15 +16,9 @@ export const TOOLS: Tool[] = [
     status: 'ready',
   },
   {
-    slug: 'wall',
-    name: 'Stud wall cutlist',
-    blurb: 'Configurable stud + plate cut list with optional horizontal blocking.',
+    slug: 'framing',
+    name: 'Framing cutlist (wall + floor)',
+    blurb: 'Stud + plate (wall mode) or joist + rim (floor mode) cut list with optional blocking. Switch mode in the form.',
     status: 'ready',
   },
-  {
-    slug: 'floor',
-    name: 'Stud floor cutlist',
-    blurb: 'Joist + rim cut list with optional mid-span blocking.',
-    status: 'ready',
-  },
-  ];
+];

@@ -111,15 +111,7 @@ export type PiecePlacement =
   | { kind: 'dormer-cali-valley';  dormerId: string; side: 'east' | 'west' }
   | { kind: 'shed-dormer-cripple'; dormerId: string; indexAlongRidge: number }
   | { kind: 'shed-dormer-header';  dormerId: string }
-  | { kind: 'wall-stud';         wallId: string; indexAlongWall: number }
-  | { kind: 'wall-top-plate';    wallId: string; layer: 0 | 1; segmentStartIn?: number }
-  | { kind: 'wall-bottom-plate'; wallId: string; segmentStartIn?: number }
-  | { kind: 'wall-block';        wallId: string; bayIndex: number; rowIndex: number }
-  | { kind: 'wall-stud-mark';    wallId: string; indexAlongWall: number; plate: 'top' | 'bottom' }
-  | { kind: 'floor-joist';       floorId: string; indexAlongWidth: number }
-  | { kind: 'floor-rim';         floorId: string; side: 'front' | 'back'; segmentStartIn?: number }
-  | { kind: 'floor-block';       floorId: string; bayIndex: number; rowIndex: number }
   | { kind: 'framing-end-cap';   framingId: string; endCap: 'A' | 'B'; layer: 0 | 1; segmentStartIn?: number }
   | { kind: 'framing-member';    framingId: string; indexAlongLength: number }
   | { kind: 'framing-block';     framingId: string; bayIndex: number; rowIndex: number }
-  | { kind: 'splice-gusset';     hostKind: 'wall-plate' | 'floor-rim' | 'framing-end-cap'; hostId: string; hostSubKey: string; positionAlongIn: number; spliceFace: 'top' | 'bottom' };
+  | { kind: 'splice-gusset';     hostKind: 'framing-end-cap'; hostId: string; hostSubKey: string; positionAlongIn: number; spliceFace: 'top' | 'bottom' };
