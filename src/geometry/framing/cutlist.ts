@@ -1,5 +1,5 @@
 import type { Piece, Polygon } from '../core/types';
-import type { FramingParams } from './types';
+import type { FramingParams, EngraveStyle, BlockRow } from './types';
 import { computeFramingGeometry, computeMemberPositions } from './compute';
 import { resolveBlockingRows } from './blocking';
 import { rectanglePolygon } from './polygons';
@@ -12,6 +12,61 @@ export interface FramingCutListResult {
 
 const MARK_LINE_WIDTH_IN = 0.015;
 
+// Emit marks for a single attachment centered at `centerAlongLong` along the strip's long axis.
+// `footprintAlongLong` is the attached part's footprint along that axis (e.g., stud's 1/8" on the plate).
+// `crossDim` is the strip's perpendicular extent.
+// `axis` = 'X' when long axis is X (end caps), 'Y' when long axis is Y (members).
+function marksAtPosition(
+  centerAlongLong: number,
+  footprintAlongLong: number,
+  crossDim: number,
+  style: EngraveStyle,
+  axis: 'X' | 'Y',
+): Polygon[] {
+  if (style === 'none') return [];
+  const half = footprintAlongLong / 2;
+  if (style === 'solid') {
+    const lo = centerAlongLong - half;
+    const hi = centerAlongLong + half;
+    if (axis === 'X') {
+      return [[
+        [lo, 0],
+        [hi, 0],
+        [hi, crossDim],
+        [lo, crossDim],
+      ]];
+    }
+    return [[
+      [0, lo],
+      [crossDim, lo],
+      [crossDim, hi],
+      [0, hi],
+    ]];
+  }
+  // brackets
+  const w = MARK_LINE_WIDTH_IN;
+  const out: Polygon[] = [];
+  for (const offset of [-half, half]) {
+    const c = centerAlongLong + offset;
+    if (axis === 'X') {
+      out.push([
+        [c - w / 2, 0],
+        [c + w / 2, 0],
+        [c + w / 2, crossDim],
+        [c - w / 2, crossDim],
+      ]);
+    } else {
+      out.push([
+        [0, c - w / 2],
+        [crossDim, c - w / 2],
+        [crossDim, c + w / 2],
+        [0, c + w / 2],
+      ]);
+    }
+  }
+  return out;
+}
+
 function memberMarksOnSegment(
   memberPositionsIn: readonly number[],
   segStartX: number,
@@ -19,23 +74,43 @@ function memberMarksOnSegment(
   endCapOffsetX: number,
   memberFootprintIn: number,
   endCapCutHeightIn: number,
+  style: EngraveStyle,
 ): Polygon[] {
   const marks: Polygon[] = [];
-  const w = MARK_LINE_WIDTH_IN;
-  const halfMember = memberFootprintIn / 2;
   for (const xCenter of memberPositionsIn) {
     if (xCenter < segStartX - 1e-9 || xCenter > segEndX + 1e-9) continue;
-    const baseLocal = xCenter - segStartX + endCapOffsetX;
-    for (const offset of [-halfMember, halfMember]) {
-      const localX = baseLocal + offset - w / 2;
-      marks.push([
-        [localX, 0],
-        [localX + w, 0],
-        [localX + w, endCapCutHeightIn],
-        [localX, endCapCutHeightIn],
-      ]);
-    }
+    const localX = xCenter - segStartX + endCapOffsetX;
+    marks.push(...marksAtPosition(localX, memberFootprintIn, endCapCutHeightIn, style, 'X'));
   }
+  return marks;
+}
+
+function blockMarksOnMember(
+  studIndex: number,
+  nStuds: number,
+  blockRows: ReadonlyArray<BlockRow>,
+  blockFootprintIn: number,
+  memberCrossDim: number,
+  style: EngraveStyle,
+): Polygon[] {
+  if (style === 'none' || blockRows.length === 0) return [];
+  const marks: Polygon[] = [];
+  // Dedupe positions in case multiple rows land at the same Y (rare but possible)
+  const seen = new Set<number>();
+  for (const row of blockRows) {
+    const adjacent = row.spanFullLength
+      || row.bayIndex === studIndex - 1
+      || row.bayIndex === studIndex;
+    if (!adjacent) continue;
+    // Round to avoid float dup keys
+    const key = Math.round(row.positionFromEndCapAIn * 1e6);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    marks.push(...marksAtPosition(row.positionFromEndCapAIn, blockFootprintIn, memberCrossDim, style, 'Y'));
+  }
+  // Drop marks above the outermost studs that touch only their single bay -- already handled above
+  // since stud 0 only matches bayIndex === 0 (no -1 bay), and stud n-1 only matches bayIndex === n-2.
+  void nStuds;
   return marks;
 }
 
@@ -81,7 +156,7 @@ export function buildFramingCutListPieces(p: FramingParams, framingId: string): 
       op: 'cut',
       label: `framing-end-cap-A-${p.mode}`,
       placement: { kind: 'framing-end-cap', framingId, endCap: 'A', layer: 0, segmentStartIn: seg.startIn },
-      engravedFeatures: memberMarksOnSegment(memberPositions, segStartX, segEndX, 0, p.stockThicknessIn, endCapCutH),
+      engravedFeatures: memberMarksOnSegment(memberPositions, segStartX, segEndX, 0, p.stockThicknessIn, endCapCutH, p.engraveStyle),
     });
   }
   for (const j of splitA.joints) {
@@ -117,7 +192,7 @@ export function buildFramingCutListPieces(p: FramingParams, framingId: string): 
       const segStartX = seg.startIn - endCapOverhang;
       const segEndX = seg.endIn - endCapOverhang;
       const marks = layer === 0
-        ? memberMarksOnSegment(memberPositions, segStartX, segEndX, 0, p.stockThicknessIn, endCapCutH)
+        ? memberMarksOnSegment(memberPositions, segStartX, segEndX, 0, p.stockThicknessIn, endCapCutH, p.engraveStyle)
         : [];
       pieces.push({
         polygon: rectanglePolygon(seg.lengthIn, endCapCutH),
@@ -150,6 +225,7 @@ export function buildFramingCutListPieces(p: FramingParams, framingId: string): 
       op: 'cut',
       label: `framing-member-${p.mode}`,
       placement: { kind: 'framing-member', framingId, indexAlongLength: i },
+      engravedFeatures: blockMarksOnMember(i, nMembers, rows, p.stockThicknessIn, p.memberDepthIn, p.engraveStyle),
     });
   }
 

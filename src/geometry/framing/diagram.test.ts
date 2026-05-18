@@ -6,7 +6,8 @@ const BASE: FramingParams = {
   mode: 'wall', lengthIn: 8.0, spanIn: 5.33, memberSpacingIn: 0.889,
   memberDepthIn: 0.25, nMembersOverride: 6, endCapHeightIn: 0.125,
   endCapBDoubled: false, blocking: { mode: 'none' }, blockingThicknessIn: 0.125,
-  stockThicknessIn: 0.125, sheetWidthIn: 12, maxPieceLengthIn: 12, marginIn: 0.12,
+  stockThicknessIn: 0.125, engraveStyle: 'brackets',
+  sheetWidthIn: 12, maxPieceLengthIn: 12, marginIn: 0.12,
 };
 
 describe('buildFramingDiagramSvg', () => {

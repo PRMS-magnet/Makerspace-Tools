@@ -84,6 +84,16 @@ const previewViews = [
           <NumberField name="blockingThicknessIn" label="Block thickness (unused; matches member depth)" value={0.125} step={0.0625} min={0.0625} />
           <div id="blocking-fields"></div>
         </FormGroup>
+        <FormGroup label="Engravings">
+          <label class="select-row">
+            <span>Style</span>
+            <select id="engrave-style-select">
+              <option value="brackets">Brackets (two ticks per position)</option>
+              <option value="solid">Solid (filled footprint)</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+        </FormGroup>
         <FormGroup label="Stock">
           <NumberField name="stockThicknessIn" label="Wood thickness (in)" value={0.125} step={0.0625} min={0.0625} />
           <NumberField name="sheetWidthIn" label="Sheet width (in)" value={12} step={0.5} min={1} />
@@ -186,7 +196,7 @@ const previewViews = [
 <script>
   import { framingPieces, composeFramingCutSvg } from '../geometry/framing';
   import { packInWorker } from '../geometry/core/packing';
-  import type { FramingParams, BlockingSpec, FramingMode } from '../geometry/framing';
+  import type { FramingParams, BlockingSpec, FramingMode, EngraveStyle } from '../geometry/framing';
   import { bboxLayoutOnSheet } from '../geometry/core/packing/bbox-fallback';
   import { getActiveMachine } from '../state/presets/machine';
   import { getActiveMaterial } from '../state/presets/material';
@@ -220,6 +230,7 @@ const previewViews = [
   const viewSlots = document.querySelectorAll<HTMLElement>('[data-view-slot]');
   const emptyState = document.getElementById('empty-state')!;
   const modeSel = document.getElementById('framing-mode-select') as HTMLSelectElement;
+  const engraveStyleSel = document.getElementById('engrave-style-select') as HTMLSelectElement;
   const toolTitleEl = document.getElementById('tool-title');
 
   const UI_KEY_SIDEBAR = 'mt:ui:framing:sidebar';
@@ -358,6 +369,7 @@ const previewViews = [
       blocking: readBlockingSpec(),
       blockingThicknessIn: num('blockingThicknessIn'),
       stockThicknessIn: num('stockThicknessIn'),
+      engraveStyle: engraveStyleSel.value as EngraveStyle,
       sheetWidthIn: num('sheetWidthIn'),
       maxPieceLengthIn: num('maxPieceLengthIn'),
       marginIn: num('marginIn'),
@@ -412,6 +424,7 @@ const previewViews = [
     (form.elements.namedItem('endCapBDoubled') as HTMLInputElement).checked = p.endCapBDoubled;
     setVal('blockingThicknessIn', p.blockingThicknessIn);
     setVal('stockThicknessIn', p.stockThicknessIn);
+    engraveStyleSel.value = p.engraveStyle ?? 'brackets';
     setVal('sheetWidthIn', p.sheetWidthIn);
     setVal('maxPieceLengthIn', p.maxPieceLengthIn);
     setVal('marginIn', p.marginIn);
@@ -672,6 +685,7 @@ const previewViews = [
   window.addEventListener('resize', scheduleFitLayout);
 
   blockingModeSel.addEventListener('change', () => { renderBlockingFields(); recompute(); });
+  engraveStyleSel.addEventListener('change', () => { recompute(); });
 
   modeSel.addEventListener('change', () => {
     const mode = modeSel.value as FramingMode;

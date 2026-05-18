@@ -14,6 +14,7 @@ const DEFAULTS: FramingParams = {
   blocking: { mode: 'none' },
   blockingThicknessIn: 0.125,
   stockThicknessIn: 0.125,
+  engraveStyle: 'brackets',
   sheetWidthIn: 12.0,
   maxPieceLengthIn: 12.0,
   marginIn: 0.12,

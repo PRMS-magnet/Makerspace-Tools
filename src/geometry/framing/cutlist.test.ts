@@ -14,6 +14,7 @@ const DEFAULTS: FramingParams = {
   blocking: { mode: 'none' },
   blockingThicknessIn: 0.125,
   stockThicknessIn: 0.125,
+  engraveStyle: 'brackets',
   sheetWidthIn: 12.0,
   maxPieceLengthIn: 12.0,
   marginIn: 0.12,
@@ -103,5 +104,74 @@ describe('buildFramingCutListPieces', () => {
     const wall = buildFramingCutListPieces(DEFAULTS, 'main').pieces;
     const floor = buildFramingCutListPieces({ ...DEFAULTS, mode: 'floor' }, 'main').pieces;
     expect(wall.length).toBe(floor.length);
+  });
+});
+
+describe('engraveStyle', () => {
+  it('none emits zero marks on end caps and members', () => {
+    const { pieces } = buildFramingCutListPieces(
+      { ...DEFAULTS, engraveStyle: 'none', blocking: { mode: 'half', positionFraction: 0.5 } },
+      'main',
+    );
+    for (const p of pieces) {
+      expect(p.engravedFeatures?.length ?? 0).toBe(0);
+    }
+  });
+
+  it('solid emits one filled rectangle per position (vs 2 ticks for brackets)', () => {
+    const brackets = buildFramingCutListPieces({ ...DEFAULTS, engraveStyle: 'brackets' }, 'main').pieces;
+    const solid = buildFramingCutListPieces({ ...DEFAULTS, engraveStyle: 'solid' }, 'main').pieces;
+    const bracketEndCap = brackets.find((p) => p.placement?.kind === 'framing-end-cap')!;
+    const solidEndCap = solid.find((p) => p.placement?.kind === 'framing-end-cap')!;
+    expect(bracketEndCap.engravedFeatures?.length).toBe(12); // 6 members x 2 ticks
+    expect(solidEndCap.engravedFeatures?.length).toBe(6);    // 6 members x 1 solid
+  });
+});
+
+describe('member blocking marks', () => {
+  it('members get no blocking marks when blocking is none', () => {
+    const { pieces } = buildFramingCutListPieces(DEFAULTS, 'main');
+    for (const p of pieces.filter((x) => x.placement?.kind === 'framing-member')) {
+      expect(p.engravedFeatures?.length ?? 0).toBe(0);
+    }
+  });
+
+  it('half-mode blocking puts 2 ticks (brackets) on each interior stud and 2 on each outer stud', () => {
+    const { pieces } = buildFramingCutListPieces(
+      { ...DEFAULTS, blocking: { mode: 'half', positionFraction: 0.5 } },
+      'main',
+    );
+    const members = pieces
+      .filter((p) => p.placement?.kind === 'framing-member')
+      .sort((a, b) => (a.placement as { indexAlongLength: number }).indexAlongLength - (b.placement as { indexAlongLength: number }).indexAlongLength);
+    // 6 studs, 5 bays each at position 0.5. Outer studs touch only 1 adjacent bay; interior touch 2.
+    // But all 5 bays have a row at the SAME position 0.5, so the dedupe keeps just one position per stud.
+    // Each stud has 1 unique position -> 2 ticks (brackets).
+    for (const m of members) {
+      expect(m.engravedFeatures?.length).toBe(2);
+    }
+  });
+
+  it('solid engrave style emits one filled mark per blocking position on each adjacent stud', () => {
+    const { pieces } = buildFramingCutListPieces(
+      { ...DEFAULTS, blocking: { mode: 'half', positionFraction: 0.5 }, engraveStyle: 'solid' },
+      'main',
+    );
+    const members = pieces.filter((p) => p.placement?.kind === 'framing-member');
+    for (const m of members) {
+      expect(m.engravedFeatures?.length).toBe(1);
+    }
+  });
+
+  it('full-length blocking (custom bayIndex=-1) marks every stud', () => {
+    const { pieces } = buildFramingCutListPieces(
+      { ...DEFAULTS, blocking: { mode: 'custom', rows: [{ bayIndex: -1, positionFraction: 0.3 }] } },
+      'main',
+    );
+    const members = pieces.filter((p) => p.placement?.kind === 'framing-member');
+    expect(members.length).toBe(6);
+    for (const m of members) {
+      expect(m.engravedFeatures?.length).toBe(2); // brackets default
+    }
   });
 });

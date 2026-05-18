@@ -2,6 +2,8 @@ import type { SheetParams } from '../roof/types';
 
 export type FramingMode = 'wall' | 'floor';
 
+export type EngraveStyle = 'brackets' | 'solid' | 'none';
+
 export type BlockingSpec =
   | { mode: 'none' }
   | { mode: 'half'; positionFraction: number }
@@ -21,6 +23,7 @@ export interface FramingUnit {
   blocking: BlockingSpec;
   blockingThicknessIn: number;
   stockThicknessIn: number;
+  engraveStyle: EngraveStyle;
 }
 
 export type FramingParams = Omit<FramingUnit, 'id'> & SheetParams;
@@ -51,5 +54,6 @@ export function framingParamsToUnit(p: FramingParams, id = 'main'): FramingUnit 
     blocking: p.blocking,
     blockingThicknessIn: p.blockingThicknessIn,
     stockThicknessIn: p.stockThicknessIn,
+    engraveStyle: p.engraveStyle,
   };
 }
