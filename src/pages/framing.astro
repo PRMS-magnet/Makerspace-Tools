@@ -637,6 +637,9 @@ const previewViews = [
       if ((err as Error)?.name === 'AbortError') return;
       console.error('pack worker error', err);
       appendWarning(warningsEl, 'smart packing failed; using the simple layout', true);
+      // Restore the on-screen preview to the complete bbox-fallback layout in case
+      // an in-flight partial render is stuck on screen.
+      if (cutListVisible() && lastValidOutput) cutSlot.innerHTML = lastValidOutput.cutSvg;
     });
   }
 
