@@ -24,9 +24,17 @@ describe('computeFloorGeometry', () => {
     expect(g.interRimDepthIn).toBeCloseTo(6.67 - 0.125 - 0.125, 6);
   });
 
-  it('computes bay width as spacing minus joist thickness', () => {
+  it('bay width = effective spacing - stock thickness (derived from actual joist distribution)', () => {
     const g = computeFloorGeometry(DEFAULTS);
-    expect(g.bayWidthIn).toBeCloseTo(0.889 - 0.083, 6);
+    const nJoists = Math.round(DEFAULTS.widthIn / DEFAULTS.joistSpacingIn) + 1;
+    const effectiveSpacing = DEFAULTS.widthIn / (nJoists - 1);
+    expect(g.bayWidthIn).toBeCloseTo(effectiveSpacing - DEFAULTS.stockThicknessIn, 6);
+  });
+
+  it('bay width tracks override when joist count is forced', () => {
+    const g = computeFloorGeometry({ ...DEFAULTS, nJoistsOverride: 5 });
+    const effectiveSpacing = DEFAULTS.widthIn / (5 - 1);
+    expect(g.bayWidthIn).toBeCloseTo(effectiveSpacing - DEFAULTS.stockThicknessIn, 6);
   });
 });
 

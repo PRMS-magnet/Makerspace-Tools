@@ -13,8 +13,8 @@ export function buildWallDiagramSvg(p: WallParams): string {
   const nBays = Math.max(0, studPositions.length - 1);
   const blockRows = resolveBlockingRows(p.blocking, nBays, geom.interPlateHeightIn);
 
-  const plateOverhang = p.studWidthIn / 2;
-  const plateTotalLen = p.widthIn + p.studWidthIn;
+  const plateOverhang = p.stockThicknessIn / 2;
+  const plateTotalLen = p.widthIn + p.stockThicknessIn;
   const w = plateTotalLen + 2 * margin;
   const h = p.heightIn + 2 * margin;
   const parts: string[] = [];
@@ -32,7 +32,7 @@ export function buildWallDiagramSvg(p: WallParams): string {
   const studYTop = margin + geom.nTopPlateLayers * p.topPlateHeightIn;
   for (const xCenter of studPositions) {
     parts.push(
-      `<rect x="${fmt(margin + xCenter - p.studWidthIn / 2)}" y="${fmt(studYTop)}" width="${fmt(p.studWidthIn)}" height="${fmt(geom.interPlateHeightIn)}" fill="#e9c46a" stroke="#000" stroke-width="0.01"/>`,
+      `<rect x="${fmt(margin + xCenter - p.stockThicknessIn / 2)}" y="${fmt(studYTop)}" width="${fmt(p.stockThicknessIn)}" height="${fmt(geom.interPlateHeightIn)}" fill="#e9c46a" stroke="#000" stroke-width="0.01"/>`,
     );
   }
 
@@ -40,7 +40,7 @@ export function buildWallDiagramSvg(p: WallParams): string {
     const y = studYTop + row.heightFromBottomPlateIn - p.blockingThicknessIn / 2;
     const x = row.spanFullWidth
       ? margin
-      : margin + studPositions[row.bayIndex] + p.studWidthIn / 2;
+      : margin + studPositions[row.bayIndex] + p.stockThicknessIn / 2;
     const ww = row.spanFullWidth ? p.widthIn : geom.bayWidthIn;
     parts.push(
       `<rect x="${fmt(x)}" y="${fmt(y)}" width="${fmt(ww)}" height="${fmt(p.blockingThicknessIn)}" fill="#a8dadc" stroke="#000" stroke-width="0.01"/>`,

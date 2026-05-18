@@ -490,7 +490,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
     case 'wall-bottom-plate': {
       const f = ctx.wallFrames.get(p.wallId);
       if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
-      const xLocal = -f.unit.studWidthIn / 2 + (p.segmentStartIn ?? 0);
+      const xLocal = -f.unit.stockThicknessIn / 2 + (p.segmentStartIn ?? 0);
       const localOrigin: Vec3 = [xLocal, 0, 0];
       const localU: Vec3 = [1, 0, 0];
       const localV: Vec3 = [0, 1, 0];
@@ -501,7 +501,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const f = ctx.wallFrames.get(p.wallId);
       if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
       const z = f.unit.heightIn - (p.layer + 1) * f.unit.topPlateHeightIn;
-      const xLocal = -f.unit.studWidthIn / 2 + (p.segmentStartIn ?? 0);
+      const xLocal = -f.unit.stockThicknessIn / 2 + (p.segmentStartIn ?? 0);
       const localOrigin: Vec3 = [xLocal, 0, z];
       const localU: Vec3 = [1, 0, 0];
       const localV: Vec3 = [0, 1, 0];
@@ -511,7 +511,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
     case 'wall-stud': {
       const f = ctx.wallFrames.get(p.wallId);
       if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
-      const x = f.studPositionsIn[p.indexAlongWall] - f.unit.studWidthIn / 2;
+      const x = f.studPositionsIn[p.indexAlongWall] - f.unit.stockThicknessIn / 2;
       const localOrigin: Vec3 = [x, 0, f.unit.bottomPlateHeightIn];
       const localU: Vec3 = [1, 0, 0];
       const localV: Vec3 = [0, 1, 0];
@@ -522,7 +522,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const f = ctx.wallFrames.get(p.wallId);
       if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
       const row = f.blockRows[p.rowIndex];
-      const x = row.spanFullWidth ? 0 : f.studPositionsIn[row.bayIndex] + f.unit.studWidthIn / 2;
+      const x = row.spanFullWidth ? 0 : f.studPositionsIn[row.bayIndex] + f.unit.stockThicknessIn / 2;
       const z = f.unit.bottomPlateHeightIn + row.heightFromBottomPlateIn;
       const localOrigin: Vec3 = [x, 0, z];
       const localU: Vec3 = [1, 0, 0];
@@ -533,7 +533,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
     case 'wall-stud-mark': {
       const f = ctx.wallFrames.get(p.wallId);
       if (!f) throw new Error(`resolvePiece: no wall frame for ${p.wallId}`);
-      const x = f.studPositionsIn[p.indexAlongWall] - f.unit.studWidthIn / 2;
+      const x = f.studPositionsIn[p.indexAlongWall] - f.unit.stockThicknessIn / 2;
       const z = p.plate === 'bottom'
         ? f.unit.bottomPlateHeightIn
         : f.unit.heightIn - f.nTopPlateLayers * f.unit.topPlateHeightIn;
@@ -547,7 +547,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const f = ctx.floorFrames.get(p.floorId);
       if (!f) throw new Error(`resolvePiece: no floor frame for ${p.floorId}`);
       const y = p.side === 'front' ? 0 : f.unit.depthIn - f.unit.rimThicknessIn;
-      const xLocal = -f.unit.joistThicknessIn / 2 + (p.segmentStartIn ?? 0);
+      const xLocal = -f.unit.stockThicknessIn / 2 + (p.segmentStartIn ?? 0);
       const localOrigin: Vec3 = [xLocal, y, 0];
       const localU: Vec3 = [1, 0, 0];
       const localV: Vec3 = [0, 1, 0];
@@ -557,7 +557,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
     case 'floor-joist': {
       const f = ctx.floorFrames.get(p.floorId);
       if (!f) throw new Error(`resolvePiece: no floor frame for ${p.floorId}`);
-      const x = f.joistPositionsIn[p.indexAlongWidth] - f.unit.joistThicknessIn / 2;
+      const x = f.joistPositionsIn[p.indexAlongWidth] - f.unit.stockThicknessIn / 2;
       const localOrigin: Vec3 = [x, f.unit.rimThicknessIn, 0];
       const localU: Vec3 = [1, 0, 0];
       const localV: Vec3 = [0, 1, 0];
@@ -568,7 +568,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const f = ctx.floorFrames.get(p.floorId);
       if (!f) throw new Error(`resolvePiece: no floor frame for ${p.floorId}`);
       const row = f.blockRows[p.rowIndex];
-      const x = row.spanFullWidth ? 0 : f.joistPositionsIn[row.bayIndex] + f.unit.joistThicknessIn / 2;
+      const x = row.spanFullWidth ? 0 : f.joistPositionsIn[row.bayIndex] + f.unit.stockThicknessIn / 2;
       const y = f.unit.rimThicknessIn + row.distanceFromFrontRimIn - f.unit.blockingThicknessIn / 2;
       const localOrigin: Vec3 = [x, y, 0];
       const localU: Vec3 = [1, 0, 0];
@@ -589,7 +589,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
         const plateTopZ = plateBottomZ + plateHeightIn;
         const stock = f.unit.stockThicknessIn;
         const z = p.spliceFace === 'top' ? plateTopZ : plateBottomZ - stock;
-        const xLocal = -f.unit.studWidthIn / 2 + p.positionAlongIn;
+        const xLocal = -f.unit.stockThicknessIn / 2 + p.positionAlongIn;
         const localOrigin: Vec3 = [xLocal, 0, z];
         const localU: Vec3 = [1, 0, 0];
         const localV: Vec3 = [0, 1, 0];
@@ -602,7 +602,7 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const yRim = isFrontRim ? 0 : f.unit.depthIn - f.unit.rimThicknessIn;
       const stock = f.unit.stockThicknessIn;
       const z = p.spliceFace === 'top' ? f.unit.joistDepthIn : -stock;
-      const xLocal = -f.unit.joistThicknessIn / 2 + p.positionAlongIn;
+      const xLocal = -f.unit.stockThicknessIn / 2 + p.positionAlongIn;
       const localOrigin: Vec3 = [xLocal, yRim, z];
       const localU: Vec3 = [1, 0, 0];
       const localV: Vec3 = [0, 1, 0];

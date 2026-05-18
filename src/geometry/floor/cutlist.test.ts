@@ -33,14 +33,14 @@ describe('buildFloorCutListPieces', () => {
     }
   });
 
-  it('rim cut length equals widthIn + joistThicknessIn', () => {
+  it('rim cut length equals widthIn + stockThicknessIn (joist on edge along width)', () => {
     const { pieces } = buildFloorCutListPieces(DEFAULTS, 'main');
     const rim = pieces.find((p) => p.placement?.kind === 'floor-rim');
     expect(rim).toBeDefined();
     const poly = rim!.polygon as readonly (readonly [number, number])[];
     const xs = poly.map((v) => v[0]);
     const len = Math.max(...xs) - Math.min(...xs);
-    expect(len).toBeCloseTo(8.0 + 0.083, 6);
+    expect(len).toBeCloseTo(8.0 + 0.125, 6);
   });
 
   it('appends blocking pieces when configured', () => {

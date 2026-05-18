@@ -1,6 +1,5 @@
 import type { Piece, Polygon } from '../core/types';
 import type { FloorParams } from './types';
-import { effectiveRimCutHeight } from './types';
 import { computeFloorGeometry, computeJoistPositions } from './compute';
 import { resolveBlockingRows } from './blocking';
 import { rectanglePolygon } from './polygons';
@@ -18,24 +17,22 @@ function joistMarksOnSegment(
   segStartX: number,
   segEndX: number,
   rimOffsetX: number,
-  joistThicknessIn: number,
-  stockThicknessIn: number,
+  joistFootprintIn: number,
   rimCutHeightIn: number,
 ): Polygon[] {
   const marks: Polygon[] = [];
-  const markVOffset = (rimCutHeightIn - stockThicknessIn) / 2;
   const w = MARK_LINE_WIDTH_IN;
-  const halfJoist = joistThicknessIn / 2;
+  const halfJoist = joistFootprintIn / 2;
   for (const xCenter of joistPositionsIn) {
     if (xCenter < segStartX - 1e-9 || xCenter > segEndX + 1e-9) continue;
     const baseLocal = xCenter - segStartX + rimOffsetX;
     for (const offset of [-halfJoist, halfJoist]) {
       const localX = baseLocal + offset - w / 2;
       marks.push([
-        [localX, markVOffset],
-        [localX + w, markVOffset],
-        [localX + w, markVOffset + stockThicknessIn],
-        [localX, markVOffset + stockThicknessIn],
+        [localX, 0],
+        [localX + w, 0],
+        [localX + w, rimCutHeightIn],
+        [localX, rimCutHeightIn],
       ]);
     }
   }
@@ -56,10 +53,10 @@ export function buildFloorCutListPieces(p: FloorParams, floorId: string): FloorC
   const nBays = Math.max(0, nJoists - 1);
   const rows = resolveBlockingRows(p.blocking, nBays, geom.interRimDepthIn);
 
-  const rimOverhang = p.joistThicknessIn / 2;
-  const rimTotalLen = p.widthIn + p.joistThicknessIn;
+  const rimOverhang = p.stockThicknessIn / 2;
+  const rimTotalLen = p.widthIn + p.stockThicknessIn;
   const preferredSplices = joistPositions.map((x) => x + rimOverhang);
-  const rimCutH = effectiveRimCutHeight(p.rimThicknessIn, p.stockThicknessIn);
+  const rimCutH = p.joistDepthIn;
 
   let firstSplitForWarning: ReturnType<typeof splitPiece> | null = null;
 
@@ -89,7 +86,6 @@ export function buildFloorCutListPieces(p: FloorParams, floorId: string): FloorC
           segStartX,
           segEndX,
           0,
-          p.joistThicknessIn,
           p.stockThicknessIn,
           rimCutH,
         ),
@@ -115,7 +111,7 @@ export function buildFloorCutListPieces(p: FloorParams, floorId: string): FloorC
 
   for (let i = 0; i < nJoists; i++) {
     pieces.push({
-      polygon: rectanglePolygon(p.joistThicknessIn, geom.interRimDepthIn),
+      polygon: rectanglePolygon(p.joistDepthIn, geom.interRimDepthIn),
       op: 'cut',
       label: 'joist',
       placement: { kind: 'floor-joist', floorId, indexAlongWidth: i },

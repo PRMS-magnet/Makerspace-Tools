@@ -13,8 +13,8 @@ export function buildFloorDiagramSvg(p: FloorParams): string {
   const nBays = Math.max(0, joistPositions.length - 1);
   const blockRows = resolveBlockingRows(p.blocking, nBays, geom.interRimDepthIn);
 
-  const rimOverhang = p.joistThicknessIn / 2;
-  const rimTotalLen = p.widthIn + p.joistThicknessIn;
+  const rimOverhang = p.stockThicknessIn / 2;
+  const rimTotalLen = p.widthIn + p.stockThicknessIn;
   const w = rimTotalLen + 2 * margin;
   const h = p.depthIn + 2 * margin;
   const parts: string[] = [];
@@ -29,7 +29,7 @@ export function buildFloorDiagramSvg(p: FloorParams): string {
   const joistYTop = margin + p.rimThicknessIn;
   for (const xCenter of joistPositions) {
     parts.push(
-      `<rect x="${fmt(margin + xCenter - p.joistThicknessIn / 2)}" y="${fmt(joistYTop)}" width="${fmt(p.joistThicknessIn)}" height="${fmt(geom.interRimDepthIn)}" fill="#e9c46a" stroke="#000" stroke-width="0.01"/>`,
+      `<rect x="${fmt(margin + xCenter - p.stockThicknessIn / 2)}" y="${fmt(joistYTop)}" width="${fmt(p.stockThicknessIn)}" height="${fmt(geom.interRimDepthIn)}" fill="#e9c46a" stroke="#000" stroke-width="0.01"/>`,
     );
   }
 
@@ -37,7 +37,7 @@ export function buildFloorDiagramSvg(p: FloorParams): string {
     const y = joistYTop + row.distanceFromFrontRimIn - p.blockingThicknessIn / 2;
     const x = row.spanFullWidth
       ? margin
-      : margin + joistPositions[row.bayIndex] + p.joistThicknessIn / 2;
+      : margin + joistPositions[row.bayIndex] + p.stockThicknessIn / 2;
     const ww = row.spanFullWidth ? p.widthIn : geom.bayWidthIn;
     parts.push(
       `<rect x="${fmt(x)}" y="${fmt(y)}" width="${fmt(ww)}" height="${fmt(p.blockingThicknessIn)}" fill="#a8dadc" stroke="#000" stroke-width="0.01"/>`,

@@ -54,8 +54,8 @@ const previewViews = [
         </FormGroup>
         <FormGroup label="Studs">
           <NumberField name="studSpacingIn" label="Stud spacing (in, o.c.)" value={0.889} step={0.0625} min={0.125} />
-          <NumberField name="studWidthIn" label="Stud width (in)" value={0.083} step={0.0625} min={0.0625} />
-          <NumberField name="studDepthIn" label="Stud depth (in)" value={0.194} step={0.0625} min={0.0625} />
+          <NumberField name="studWidthIn" label="Stud face (unused; = wood thickness)" value={0.125} step={0.0625} min={0.0625} />
+          <NumberField name="studDepthIn" label="Stud depth into wall (in)" value={0.25} step={0.0625} min={0.0625} />
           <CheckboxField name="useOverride" label="Override stud count" checked={false} />
           <NumberField name="nStudsOverride" label="Stud count" value={6} step={1} min={2} max={100} />
         </FormGroup>

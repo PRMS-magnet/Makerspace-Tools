@@ -38,17 +38,17 @@ describe('computeWallPieces3D', () => {
     expect(top?.origin[2]).toBeCloseTo(5.33 - 0.125, 6);
   });
 
-  it('plates extend by studWidthIn/2 past the outer studs', () => {
+  it('plates extend by stockThicknessIn/2 past the outer studs (on-edge model)', () => {
     const pieces = computeWallPieces3D(DEFAULTS, 'main');
     const bottom = pieces.find((p) => p.placement?.kind === 'wall-bottom-plate')!;
-    expect(bottom.origin[0]).toBeCloseTo(-0.083 / 2, 6);
+    expect(bottom.origin[0]).toBeCloseTo(-0.125 / 2, 6);
   });
 
-  it('first stud x = position - studWidthIn/2', () => {
+  it('first stud x = position - stockThicknessIn/2 (on-edge model)', () => {
     const pieces = computeWallPieces3D(DEFAULTS, 'main');
     const studs = pieces.filter((p) => p.placement?.kind === 'wall-stud');
     studs.sort((a, b) => a.origin[0] - b.origin[0]);
-    expect(studs[0].origin[0]).toBeCloseTo(0 - 0.083 / 2, 6);
+    expect(studs[0].origin[0]).toBeCloseTo(0 - 0.125 / 2, 6);
   });
 
   it('no standalone stud-mark pieces remain', () => {

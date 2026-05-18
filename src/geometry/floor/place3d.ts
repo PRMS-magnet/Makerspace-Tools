@@ -47,8 +47,8 @@ export function computeFloorPieces3D(p: FloorParams, floorId: string): Piece3D[]
 
   const declared: Piece[] = [];
 
-  const rimOverhang = p.joistThicknessIn / 2;
-  const rimTotalLen = p.widthIn + p.joistThicknessIn;
+  const rimOverhang = p.stockThicknessIn / 2;
+  const rimTotalLen = p.widthIn + p.stockThicknessIn;
   const preferredSplices = joistPositions.map((x) => x + rimOverhang);
 
   for (const side of ['front', 'back'] as const) {
@@ -64,7 +64,7 @@ export function computeFloorPieces3D(p: FloorParams, floorId: string): Piece3D[]
     });
     for (const seg of split.segments) {
       declared.push({
-        polygon: rectanglePolygon(seg.lengthIn, p.rimThicknessIn),
+        polygon: rectanglePolygon(seg.lengthIn, p.joistDepthIn),
         op: 'cut',
         label: `${side}-rim`,
         placement: { kind: 'floor-rim', floorId, side, segmentStartIn: seg.startIn },
@@ -89,7 +89,7 @@ export function computeFloorPieces3D(p: FloorParams, floorId: string): Piece3D[]
 
   for (let i = 0; i < nJoists; i++) {
     declared.push({
-      polygon: rectanglePolygon(p.joistThicknessIn, geom.interRimDepthIn),
+      polygon: rectanglePolygon(p.stockThicknessIn, geom.interRimDepthIn),
       op: 'cut',
       label: 'joist',
       placement: { kind: 'floor-joist', floorId, indexAlongWidth: i },

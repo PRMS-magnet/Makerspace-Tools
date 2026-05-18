@@ -36,17 +36,17 @@ describe('computeFloorPieces3D', () => {
     expect(back?.origin[1]).toBeCloseTo(6.67 - 0.125, 6);
   });
 
-  it('rims extend by joistThicknessIn/2 past the outer joists', () => {
+  it('rims extend by stockThicknessIn/2 past the outer joists (on-edge model)', () => {
     const pieces = computeFloorPieces3D(DEFAULTS, 'main');
     const front = pieces.find((p) => p.placement?.kind === 'floor-rim' && p.placement.side === 'front')!;
-    expect(front.origin[0]).toBeCloseTo(-0.083 / 2, 6);
+    expect(front.origin[0]).toBeCloseTo(-0.125 / 2, 6);
   });
 
-  it('first joist x = position - joistThicknessIn/2', () => {
+  it('first joist x = position - stockThicknessIn/2 (on-edge model)', () => {
     const pieces = computeFloorPieces3D(DEFAULTS, 'main');
     const joists = pieces.filter((p) => p.placement?.kind === 'floor-joist');
     joists.sort((a, b) => a.origin[0] - b.origin[0]);
-    expect(joists[0].origin[0]).toBeCloseTo(0 - 0.083 / 2, 6);
+    expect(joists[0].origin[0]).toBeCloseTo(0 - 0.125 / 2, 6);
   });
 
   it('joists sit at y=rimThicknessIn (front rim inside face)', () => {

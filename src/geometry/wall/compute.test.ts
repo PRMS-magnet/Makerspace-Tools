@@ -33,9 +33,17 @@ describe('computeWallGeometry', () => {
     expect(g.nTopPlateLayers).toBe(2);
   });
 
-  it('computes bay width as spacing minus stud width', () => {
+  it('bay width = effective spacing - stock thickness (derived from actual stud distribution)', () => {
     const g = computeWallGeometry(DEFAULTS);
-    expect(g.bayWidthIn).toBeCloseTo(0.889 - 0.083, 6);
+    const nStuds = Math.round(DEFAULTS.widthIn / DEFAULTS.studSpacingIn) + 1;
+    const effectiveSpacing = DEFAULTS.widthIn / (nStuds - 1);
+    expect(g.bayWidthIn).toBeCloseTo(effectiveSpacing - DEFAULTS.stockThicknessIn, 6);
+  });
+
+  it('bay width tracks override when stud count is forced', () => {
+    const g = computeWallGeometry({ ...DEFAULTS, nStudsOverride: 5 });
+    const effectiveSpacing = DEFAULTS.widthIn / (5 - 1);
+    expect(g.bayWidthIn).toBeCloseTo(effectiveSpacing - DEFAULTS.stockThicknessIn, 6);
   });
 });
 

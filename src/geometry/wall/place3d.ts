@@ -50,8 +50,8 @@ export function computeWallPieces3D(p: WallParams, wallId: string): Piece3D[] {
 
   const declared: Piece[] = [];
 
-  const plateOverhang = p.studWidthIn / 2;
-  const plateTotalLen = p.widthIn + p.studWidthIn;
+  const plateOverhang = p.stockThicknessIn / 2;
+  const plateTotalLen = p.widthIn + p.stockThicknessIn;
   const preferredSplices = studPositions.map((x) => x + plateOverhang);
 
   const bottomSplit = splitPiece({
@@ -129,7 +129,7 @@ export function computeWallPieces3D(p: WallParams, wallId: string): Piece3D[] {
 
   for (let i = 0; i < nStuds; i++) {
     declared.push({
-      polygon: rectanglePolygon(p.studWidthIn, p.studDepthIn),
+      polygon: rectanglePolygon(p.stockThicknessIn, p.studDepthIn),
       op: 'cut',
       label: 'stud',
       placement: { kind: 'wall-stud', wallId, indexAlongWall: i },

@@ -1,6 +1,5 @@
 import type { Piece, Polygon } from '../core/types';
 import type { WallParams } from './types';
-import { effectivePlateCutHeight } from './types';
 import { computeWallGeometry, computeStudPositions } from './compute';
 import { resolveBlockingRows } from './blocking';
 import { rectanglePolygon } from './polygons';
@@ -18,24 +17,22 @@ function studMarksOnSegment(
   segStartX: number,
   segEndX: number,
   plateOffsetX: number,
-  studWidthIn: number,
-  stockThicknessIn: number,
+  studFootprintIn: number,
   plateCutHeightIn: number,
 ): Polygon[] {
   const marks: Polygon[] = [];
-  const markVOffset = (plateCutHeightIn - stockThicknessIn) / 2;
   const w = MARK_LINE_WIDTH_IN;
-  const halfStud = studWidthIn / 2;
+  const halfStud = studFootprintIn / 2;
   for (const xCenter of studPositionsIn) {
     if (xCenter < segStartX - 1e-9 || xCenter > segEndX + 1e-9) continue;
     const baseLocal = xCenter - segStartX + plateOffsetX;
     for (const offset of [-halfStud, halfStud]) {
       const localX = baseLocal + offset - w / 2;
       marks.push([
-        [localX, markVOffset],
-        [localX + w, markVOffset],
-        [localX + w, markVOffset + stockThicknessIn],
-        [localX, markVOffset + stockThicknessIn],
+        [localX, 0],
+        [localX + w, 0],
+        [localX + w, plateCutHeightIn],
+        [localX, plateCutHeightIn],
       ]);
     }
   }
@@ -56,12 +53,12 @@ export function buildWallCutListPieces(p: WallParams, wallId: string): WallCutLi
   const nBays = Math.max(0, nStuds - 1);
   const rows = resolveBlockingRows(p.blocking, nBays, geom.interPlateHeightIn);
 
-  const plateOverhang = p.studWidthIn / 2;
-  const plateTotalLen = p.widthIn + p.studWidthIn;
+  const plateOverhang = p.stockThicknessIn / 2;
+  const plateTotalLen = p.widthIn + p.stockThicknessIn;
   const preferredSplices = studPositions.map((x) => x + plateOverhang);
 
-  const bottomCutH = effectivePlateCutHeight(p.bottomPlateHeightIn, p.stockThicknessIn);
-  const topCutH = effectivePlateCutHeight(p.topPlateHeightIn, p.stockThicknessIn);
+  const bottomCutH = p.studDepthIn;
+  const topCutH = p.studDepthIn;
 
   const bottomSplit = splitPiece({
     pieceLengthIn: plateTotalLen,
@@ -82,7 +79,7 @@ export function buildWallCutListPieces(p: WallParams, wallId: string): WallCutLi
       op: 'cut',
       label: 'bottom-plate',
       placement: { kind: 'wall-bottom-plate', wallId },
-      engravedFeatures: studMarksOnSegment(studPositions, segStartX, segEndX, 0, p.studWidthIn, p.stockThicknessIn, bottomCutH),
+      engravedFeatures: studMarksOnSegment(studPositions, segStartX, segEndX, 0, p.stockThicknessIn, bottomCutH),
     });
   }
 
@@ -119,7 +116,7 @@ export function buildWallCutListPieces(p: WallParams, wallId: string): WallCutLi
       const segStartX = seg.startIn - plateOverhang;
       const segEndX = seg.endIn - plateOverhang;
       const marks = layer === 0
-        ? studMarksOnSegment(studPositions, segStartX, segEndX, 0, p.studWidthIn, p.stockThicknessIn, topCutH)
+        ? studMarksOnSegment(studPositions, segStartX, segEndX, 0, p.stockThicknessIn, topCutH)
         : [];
       pieces.push({
         polygon: rectanglePolygon(seg.lengthIn, topCutH),
@@ -149,7 +146,7 @@ export function buildWallCutListPieces(p: WallParams, wallId: string): WallCutLi
 
   for (let i = 0; i < nStuds; i++) {
     pieces.push({
-      polygon: rectanglePolygon(p.studWidthIn, geom.interPlateHeightIn),
+      polygon: rectanglePolygon(p.studDepthIn, geom.interPlateHeightIn),
       op: 'cut',
       label: 'stud',
       placement: { kind: 'wall-stud', wallId, indexAlongWall: i },
