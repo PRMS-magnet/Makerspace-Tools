@@ -104,6 +104,38 @@ describe('verifyFraming - fabrication layer', () => {
   });
 });
 
+describe('verifyFraming - structural layer', () => {
+  it('passes for the default wall (every piece connected, members touch both plates)', () => {
+    const { cut, three } = build(BASE);
+    const r = verifyFraming(BASE, cut, three);
+    expect(r.errors.filter((e) => e.layer === 'structural')).toEqual([]);
+  });
+
+  it('flags a floating piece (no face contact with any other)', () => {
+    const { cut, three } = build(BASE);
+    // Move one stud far away so it has no face contact with anything.
+    const studIdx = three.findIndex((p) => p.placement?.kind === 'framing-member');
+    const tampered: Piece3D[] = three.map((p, i) =>
+      i === studIdx ? { ...p, origin: [100, 100, 100] as readonly [number, number, number] } : p
+    );
+    const r = verifyFraming(BASE, cut, tampered);
+    expect(r.errors.some((e) => e.layer === 'structural' && (e.message.includes('disconnected') || e.message.includes('touches only') || e.message.includes('touches no')))).toBe(true);
+  });
+
+  it('flags a block that does not touch two members (e.g., wrong bay position)', () => {
+    const params = { ...BASE, blocking: { mode: 'half' as const, positionFraction: 0.5 } };
+    const { cut, three } = build(params);
+    // Move one block so it no longer butts up against its two adjacent studs.
+    const blockIdx = three.findIndex((p) => p.placement?.kind === 'framing-block');
+    const orig = three[blockIdx].origin;
+    const tampered: Piece3D[] = three.map((p, i) =>
+      i === blockIdx ? { ...p, origin: [orig[0] + 0.5, orig[1], orig[2]] as readonly [number, number, number] } : p
+    );
+    const r = verifyFraming(params, cut, tampered);
+    expect(r.errors.some((e) => e.layer === 'structural' && e.message.includes('block'))).toBe(true);
+  });
+});
+
 describe('verifyFraming - overall', () => {
   it('ok=true when there are no errors (warnings allowed)', () => {
     const { cut, three } = build(BASE);

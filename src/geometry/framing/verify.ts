@@ -2,7 +2,7 @@ import type { Piece, Piece3D, Polygon, PolygonWithHoles } from '../core/types';
 import { isPolygonWithHoles } from '../core/types';
 import type { FramingParams } from './types';
 
-export type VerificationLayer = 'sanity' | 'geometric' | 'fabrication';
+export type VerificationLayer = 'sanity' | 'geometric' | 'structural' | 'fabrication';
 
 export interface VerificationError {
   layer: VerificationLayer;
@@ -223,6 +223,97 @@ function volumeOf(box: { min: [number, number, number]; max: [number, number, nu
   return dx * dy * dz;
 }
 
+// Two axis-aligned faces touch iff they're coplanar on one axis and their 2D
+// footprints overlap on the other two. Returns the contact area (square inches)
+// or null if no contact.
+function faceContactArea(
+  a: { min: [number, number, number]; max: [number, number, number] },
+  b: { min: [number, number, number]; max: [number, number, number] },
+  eps = 5e-4,
+): number | null {
+  for (let axis = 0; axis < 3; axis++) {
+    const u = (axis + 1) % 3;
+    const v = (axis + 2) % 3;
+    const coplanar = Math.abs(a.max[axis] - b.min[axis]) < eps || Math.abs(a.min[axis] - b.max[axis]) < eps;
+    if (!coplanar) continue;
+    const ou = Math.min(a.max[u], b.max[u]) - Math.max(a.min[u], b.min[u]);
+    const ov = Math.min(a.max[v], b.max[v]) - Math.max(a.min[v], b.min[v]);
+    if (ou > eps && ov > eps) return ou * ov;
+  }
+  return null;
+}
+
+// LAYER 2b -- structural: every piece must be part of one connected component,
+// and per-kind expected degree (e.g., a stud touches both plates).
+function checkStructural(pieces3D: ReadonlyArray<Piece3D>): VerificationError[] {
+  const errors: VerificationError[] = [];
+  if (pieces3D.length === 0) return errors;
+  const boxes = pieces3D.map((p) => ({ piece: p, aabb: aabbOf(p) }));
+
+  // Build adjacency via face contact.
+  const adj: number[][] = boxes.map(() => []);
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const area = faceContactArea(boxes[i].aabb, boxes[j].aabb);
+      if (area !== null && area > 1e-4) {
+        adj[i].push(j);
+        adj[j].push(i);
+      }
+    }
+  }
+
+  // Connectedness via BFS from node 0.
+  const seen = new Set<number>([0]);
+  const queue: number[] = [0];
+  while (queue.length > 0) {
+    const n = queue.shift()!;
+    for (const m of adj[n]) if (!seen.has(m)) { seen.add(m); queue.push(m); }
+  }
+  if (seen.size !== boxes.length) {
+    const isolated = boxes
+      .map((b, i) => ({ piece: b.piece, i }))
+      .filter(({ i }) => !seen.has(i))
+      .map(({ piece }) => pieceIdentity(piece));
+    errors.push({
+      layer: 'structural',
+      severity: 'error',
+      message: `Assembly has disconnected pieces (no face contact with anything else): ${isolated.join(', ')}.`,
+    });
+  }
+
+  // Per-kind expected degree.
+  // - Stud (framing-member, mode=wall): expects >=2 face contacts (bottom + top plate).
+  // - Block (framing-block): expects >=2 contacts (its two studs).
+  // - End cap (framing-end-cap): expects >=1 member contact.
+  for (let i = 0; i < boxes.length; i++) {
+    const kind = pieceKindOf(boxes[i].piece);
+    const deg = adj[i].length;
+    if (kind === 'framing-member' && deg < 2) {
+      errors.push({
+        layer: 'structural',
+        severity: 'error',
+        pieceKind: kind,
+        message: `${pieceIdentity(boxes[i].piece)}: member touches only ${deg} other piece(s). Expected at least 2 (both end caps).`,
+      });
+    } else if (kind === 'framing-block' && deg < 2) {
+      errors.push({
+        layer: 'structural',
+        severity: 'error',
+        pieceKind: kind,
+        message: `${pieceIdentity(boxes[i].piece)}: block touches only ${deg} other piece(s). Expected at least 2 (the two adjacent members).`,
+      });
+    } else if (kind === 'framing-end-cap' && deg < 1) {
+      errors.push({
+        layer: 'structural',
+        severity: 'error',
+        pieceKind: kind,
+        message: `${pieceIdentity(boxes[i].piece)}: end cap touches no members. Did the resolver place it correctly?`,
+      });
+    }
+  }
+  return errors;
+}
+
 // LAYER 3 -- fabrication: are these pieces actually cuttable + assemble-able?
 const LASER_KERF_IN = 0.018; // xTool H2S diode kerf approx
 const MIN_FEATURE_IN = LASER_KERF_IN * 3; // smallest reliable cut feature
@@ -290,6 +381,7 @@ export function verifyFraming(
   const errors: VerificationError[] = [
     ...checkSanity(params, cutPieces, pieces3D),
     ...checkGeometric(pieces3D),
+    ...checkStructural(pieces3D),
     ...checkFabrication(params, cutPieces),
   ];
   return {
