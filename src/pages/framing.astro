@@ -17,6 +17,7 @@ const previewViews = [
   { key: 'diagram', label: 'Diagram' },
   { key: 'cutlist', label: 'Cut list', defaultVisible: false },
   { key: 'derived', label: 'Derived', defaultVisible: false },
+  { key: 'verify', label: 'Verification' },
   { key: 'warnings', label: 'Warnings' },
 ];
 ---
@@ -128,6 +129,9 @@ const previewViews = [
           <ViewSlot name="derived" label="Derived dimensions">
             <dl id="derived" aria-live="polite"></dl>
           </ViewSlot>
+          <ViewSlot name="verify" label="Verification">
+            <div id="verify" class="verify" aria-live="polite"></div>
+          </ViewSlot>
           <ViewSlot name="warnings" label="Warnings">
             <div id="warnings" class="warnings" aria-live="polite"></div>
           </ViewSlot>
@@ -162,6 +166,13 @@ const previewViews = [
   .warnings:empty::before { content: "No warnings."; color: var(--subtle); font-style: italic; }
   .warnings .warn { border-left: 2px solid var(--fg); padding-left: 10px; margin-bottom: 4px; font-style: italic; }
   .warnings .invalid { border-left-color: var(--invalid); color: var(--invalid); font-style: normal; }
+  .verify { font-size: 14px; padding: 12px 16px; border: 1px solid var(--rule); }
+  .verify .status { font-weight: 600; margin-bottom: 8px; }
+  .verify .status.ok { color: #2a8b3a; }
+  .verify .status.fail { color: var(--invalid); }
+  .verify .err { border-left: 2px solid var(--invalid); padding-left: 10px; margin-bottom: 4px; color: var(--invalid); }
+  .verify .warn { border-left: 2px solid var(--fg); padding-left: 10px; margin-bottom: 4px; font-style: italic; color: var(--muted); }
+  .verify .layer-tag { display: inline-block; font-size: 11px; padding: 1px 5px; margin-right: 6px; border: 1px solid currentColor; opacity: 0.6; }
   .select-row { display: block; font-size: 14px; color: var(--muted); margin-bottom: 8px; }
   .select-row > span { display: block; margin-bottom: 2px; }
   .select-row select { display: block; width: 100%; box-sizing: border-box; font-family: inherit; font-size: 15px; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); padding: 5px 8px; min-height: 30px; }
@@ -195,6 +206,7 @@ const previewViews = [
 
 <script>
   import { framingPieces, composeFramingCutSvg } from '../geometry/framing';
+  import { verifyFraming, type VerificationResult } from '../geometry/framing/verify';
   import { packInWorker } from '../geometry/core/packing';
   import type { FramingParams, BlockingSpec, FramingMode, EngraveStyle } from '../geometry/framing';
   import { bboxLayoutOnSheet } from '../geometry/core/packing/bbox-fallback';
@@ -214,6 +226,7 @@ const previewViews = [
   const cutSlot = document.getElementById('cutlist-preview')!;
   const derivedEl = document.getElementById('derived')!;
   const warningsEl = document.getElementById('warnings')!;
+  const verifyEl = document.getElementById('verify')!;
   const blockingFieldsEl = document.getElementById('blocking-fields')!;
   const blockingModeSel = document.getElementById('blocking-mode-select') as HTMLSelectElement;
   const machineNameEl = document.getElementById('active-machine-name')!;
@@ -488,6 +501,28 @@ const previewViews = [
     for (const w of base) appendWarning(warningsEl, `note: ${w}`);
   }
 
+  function renderVerification(v: VerificationResult): void {
+    verifyEl.replaceChildren();
+    const status = document.createElement('div');
+    status.className = `status ${v.ok ? 'ok' : 'fail'}`;
+    const errCount = v.errors.filter((e) => e.severity === 'error').length;
+    const warnCount = v.errors.filter((e) => e.severity === 'warning').length;
+    status.textContent = v.ok
+      ? `OK (no errors${warnCount ? `, ${warnCount} warning${warnCount === 1 ? '' : 's'}` : ''})`
+      : `FAIL (${errCount} error${errCount === 1 ? '' : 's'}${warnCount ? `, ${warnCount} warning${warnCount === 1 ? '' : 's'}` : ''})`;
+    verifyEl.appendChild(status);
+    for (const e of v.errors) {
+      const div = document.createElement('div');
+      div.className = e.severity === 'error' ? 'err' : 'warn';
+      const tag = document.createElement('span');
+      tag.className = 'layer-tag';
+      tag.textContent = e.layer;
+      div.appendChild(tag);
+      div.appendChild(document.createTextNode(e.message));
+      verifyEl.appendChild(div);
+    }
+  }
+
   function cutListVisible(): boolean {
     const slot = document.querySelector('[data-view-slot="cutlist"]') as HTMLElement | null;
     return !!slot && !slot.hidden;
@@ -529,6 +564,7 @@ const previewViews = [
       <dt>Sheet</dt><dd>${bbox.totalHeightIn.toFixed(2)}&Prime; tall &times; ${p.sheetWidthIn.toFixed(2)}&Prime; wide</dd>
     `;
     renderWarnings(out.warnings);
+    renderVerification(verifyFraming(p, piecesResult.pieces, piecesResult.pieces3D));
     scheduleFitLayout();
     void updateViewer3D();
 
