@@ -46,6 +46,7 @@ export function computeWallPieces3D(p: WallParams, wallId: string): Piece3D[] {
     dormerFrames: new Map(),
     wallFrames: new Map([[wallId, frame]]),
     floorFrames: new Map(),
+    framingFrames: new Map(),
   };
 
   const declared: Piece[] = [];

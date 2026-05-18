@@ -119,4 +119,7 @@ export type PiecePlacement =
   | { kind: 'floor-joist';       floorId: string; indexAlongWidth: number }
   | { kind: 'floor-rim';         floorId: string; side: 'front' | 'back'; segmentStartIn?: number }
   | { kind: 'floor-block';       floorId: string; bayIndex: number; rowIndex: number }
-  | { kind: 'splice-gusset';     hostKind: 'wall-plate' | 'floor-rim'; hostId: string; hostSubKey: string; positionAlongIn: number; spliceFace: 'top' | 'bottom' };
+  | { kind: 'framing-end-cap';   framingId: string; endCap: 'A' | 'B'; layer: 0 | 1; segmentStartIn?: number }
+  | { kind: 'framing-member';    framingId: string; indexAlongLength: number }
+  | { kind: 'framing-block';     framingId: string; bayIndex: number; rowIndex: number }
+  | { kind: 'splice-gusset';     hostKind: 'wall-plate' | 'floor-rim' | 'framing-end-cap'; hostId: string; hostSubKey: string; positionAlongIn: number; spliceFace: 'top' | 'bottom' };

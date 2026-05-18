@@ -3,6 +3,7 @@ import type { Building, DormerGablePlacement, DormerShedPlacement } from '../bui
 import type { RoofUnit } from '../roof/types';
 import type { WallUnit, BlockRow } from '../wall/types';
 import type { FloorUnit, FloorBlockRow } from '../floor/types';
+import type { FramingUnit, BlockRow as FramingBlockRow } from '../framing/types';
 import { computeRoofGeometry } from '../roof/compute';
 import { computeRoofCounts } from '../roof/cutlist';
 import type { RoofCutlistOptions } from '../roof';
@@ -67,12 +68,24 @@ export interface FloorFrame {
   blockRows: ReadonlyArray<FloorBlockRow>;
 }
 
+export interface FramingFrame {
+  unit: FramingUnit;
+  translation: Vec3;
+  rotationZRadians: number;
+  memberPositionsIn: number[];
+  nEndCapBLayers: number;
+  interEndCapSpanIn: number;
+  bayWidthIn: number;
+  blockRows: ReadonlyArray<FramingBlockRow>;
+}
+
 export interface ResolveContext {
   building: Building;
   unitFrames: Map<string, UnitFrame>;
   dormerFrames: Map<string, DormerFrame>;
   wallFrames: Map<string, WallFrame>;
   floorFrames: Map<string, FloorFrame>;
+  framingFrames: Map<string, FramingFrame>;
 }
 
 function unitPlacementFor(b: Building, unitIndex: number): { translation: Vec3; rotationZRadians: number } {
@@ -205,7 +218,7 @@ export function buildContext(b: Building, opts: RoofCutlistOptions): ResolveCont
     }
   }
 
-  return { building: b, unitFrames, dormerFrames, wallFrames: new Map(), floorFrames: new Map() };
+  return { building: b, unitFrames, dormerFrames, wallFrames: new Map(), floorFrames: new Map(), framingFrames: new Map() };
 }
 
 function applyWallFrame(
@@ -232,6 +245,25 @@ function applyFloorFrame(
   localU: Vec3,
   localV: Vec3,
   frame: FloorFrame,
+): { origin: Vec3; uAxis: Vec3; vAxis: Vec3 } {
+  const angle = frame.rotationZRadians;
+  if (angle === 0 &&
+      frame.translation[0] === 0 &&
+      frame.translation[1] === 0 &&
+      frame.translation[2] === 0) {
+    return { origin: localOrigin, uAxis: localU, vAxis: localV };
+  }
+  const origin = add3(rotateZ(localOrigin, angle), frame.translation);
+  const uAxis = rotateZ(localU, angle);
+  const vAxis = rotateZ(localV, angle);
+  return { origin, uAxis, vAxis };
+}
+
+function applyFramingFrame(
+  localOrigin: Vec3,
+  localU: Vec3,
+  localV: Vec3,
+  frame: FramingFrame,
 ): { origin: Vec3; uAxis: Vec3; vAxis: Vec3 } {
   const angle = frame.rotationZRadians;
   if (angle === 0 &&
@@ -576,6 +608,61 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const { origin, uAxis, vAxis } = applyFloorFrame(localOrigin, localU, localV, f);
       return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.joistDepthIn };
     }
+    case 'framing-end-cap': {
+      const f = ctx.framingFrames.get(p.framingId);
+      if (!f) throw new Error(`resolvePiece: no framing frame for ${p.framingId}`);
+      const xLocal = -f.unit.stockThicknessIn / 2 + (p.segmentStartIn ?? 0);
+      if (f.unit.mode === 'wall') {
+        const z = p.endCap === 'A'
+          ? 0
+          : f.unit.spanIn - (p.layer + 1) * f.unit.endCapHeightIn;
+        const localOrigin: Vec3 = [xLocal, 0, z];
+        const localU: Vec3 = [1, 0, 0];
+        const localV: Vec3 = [0, 1, 0];
+        const { origin, uAxis, vAxis } = applyFramingFrame(localOrigin, localU, localV, f);
+        return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.endCapHeightIn };
+      } else {
+        const y = p.endCap === 'A'
+          ? 0
+          : f.unit.spanIn - f.unit.endCapHeightIn;
+        const localOrigin: Vec3 = [xLocal, y, 0];
+        const localU: Vec3 = [1, 0, 0];
+        const localV: Vec3 = [0, 1, 0];
+        const { origin, uAxis, vAxis } = applyFramingFrame(localOrigin, localU, localV, f);
+        return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.memberDepthIn };
+      }
+    }
+    case 'framing-member': {
+      const f = ctx.framingFrames.get(p.framingId);
+      if (!f) throw new Error(`resolvePiece: no framing frame for ${p.framingId}`);
+      const x = f.memberPositionsIn[p.indexAlongLength] - f.unit.stockThicknessIn / 2;
+      if (f.unit.mode === 'wall') {
+        const localOrigin: Vec3 = [x, 0, f.unit.endCapHeightIn];
+        const { origin, uAxis, vAxis } = applyFramingFrame(localOrigin, [1, 0, 0], [0, 1, 0], f);
+        return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.interEndCapSpanIn };
+      } else {
+        const localOrigin: Vec3 = [x, f.unit.endCapHeightIn, 0];
+        const { origin, uAxis, vAxis } = applyFramingFrame(localOrigin, [1, 0, 0], [0, 1, 0], f);
+        return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.memberDepthIn };
+      }
+    }
+    case 'framing-block': {
+      const f = ctx.framingFrames.get(p.framingId);
+      if (!f) throw new Error(`resolvePiece: no framing frame for ${p.framingId}`);
+      const row = f.blockRows[p.rowIndex];
+      const x = row.spanFullLength ? 0 : f.memberPositionsIn[row.bayIndex] + f.unit.stockThicknessIn / 2;
+      if (f.unit.mode === 'wall') {
+        const z = f.unit.endCapHeightIn + row.positionFromEndCapAIn;
+        const localOrigin: Vec3 = [x, 0, z];
+        const { origin, uAxis, vAxis } = applyFramingFrame(localOrigin, [1, 0, 0], [0, 1, 0], f);
+        return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.blockingThicknessIn };
+      } else {
+        const y = f.unit.endCapHeightIn + row.positionFromEndCapAIn - f.unit.blockingThicknessIn / 2;
+        const localOrigin: Vec3 = [x, y, 0];
+        const { origin, uAxis, vAxis } = applyFramingFrame(localOrigin, [1, 0, 0], [0, 1, 0], f);
+        return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: f.unit.memberDepthIn };
+      }
+    }
     case 'splice-gusset': {
       if (p.hostKind === 'wall-plate') {
         const f = ctx.wallFrames.get(p.hostId);
@@ -596,17 +683,40 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
         const { origin, uAxis, vAxis } = applyWallFrame(localOrigin, localU, localV, f);
         return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: stock };
       }
-      const f = ctx.floorFrames.get(p.hostId);
-      if (!f) throw new Error(`resolvePiece: no floor frame for ${p.hostId}`);
-      const isFrontRim = p.hostSubKey === 'front';
-      const yRim = isFrontRim ? 0 : f.unit.depthIn - f.unit.rimThicknessIn;
+      if (p.hostKind === 'floor-rim') {
+        const f = ctx.floorFrames.get(p.hostId);
+        if (!f) throw new Error(`resolvePiece: no floor frame for ${p.hostId}`);
+        const isFrontRim = p.hostSubKey === 'front';
+        const yRim = isFrontRim ? 0 : f.unit.depthIn - f.unit.rimThicknessIn;
+        const stock = f.unit.stockThicknessIn;
+        const z = p.spliceFace === 'top' ? f.unit.joistDepthIn : -stock;
+        const xLocal = -f.unit.stockThicknessIn / 2 + p.positionAlongIn;
+        const localOrigin: Vec3 = [xLocal, yRim, z];
+        const localU: Vec3 = [1, 0, 0];
+        const localV: Vec3 = [0, 1, 0];
+        const { origin, uAxis, vAxis } = applyFloorFrame(localOrigin, localU, localV, f);
+        return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: stock };
+      }
+      const f = ctx.framingFrames.get(p.hostId);
+      if (!f) throw new Error(`resolvePiece: no framing frame for ${p.hostId}`);
       const stock = f.unit.stockThicknessIn;
-      const z = p.spliceFace === 'top' ? f.unit.joistDepthIn : -stock;
-      const xLocal = -f.unit.stockThicknessIn / 2 + p.positionAlongIn;
-      const localOrigin: Vec3 = [xLocal, yRim, z];
-      const localU: Vec3 = [1, 0, 0];
-      const localV: Vec3 = [0, 1, 0];
-      const { origin, uAxis, vAxis } = applyFloorFrame(localOrigin, localU, localV, f);
+      const xLocal = -stock / 2 + p.positionAlongIn;
+      const isEndCapA = p.hostSubKey === 'A';
+      if (f.unit.mode === 'wall') {
+        const layer = !isEndCapA && p.hostSubKey.startsWith('B:') ? Number(p.hostSubKey.split(':')[1] ?? '0') : 0;
+        const endCapBottomZ = isEndCapA
+          ? 0
+          : f.unit.spanIn - (layer + 1) * f.unit.endCapHeightIn;
+        const endCapTopZ = endCapBottomZ + f.unit.endCapHeightIn;
+        const z = p.spliceFace === 'top' ? endCapTopZ : endCapBottomZ - stock;
+        const localOrigin: Vec3 = [xLocal, 0, z];
+        const { origin, uAxis, vAxis } = applyFramingFrame(localOrigin, [1, 0, 0], [0, 1, 0], f);
+        return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: stock };
+      }
+      const yEndCap = isEndCapA ? 0 : f.unit.spanIn - f.unit.endCapHeightIn;
+      const z = p.spliceFace === 'top' ? f.unit.memberDepthIn : -stock;
+      const localOrigin: Vec3 = [xLocal, yEndCap, z];
+      const { origin, uAxis, vAxis } = applyFramingFrame(localOrigin, [1, 0, 0], [0, 1, 0], f);
       return { ...piece, origin, uAxis, vAxis, extrudeDepthIn: stock };
     }
     case 'unit-top-plate':

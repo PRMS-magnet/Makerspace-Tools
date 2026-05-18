@@ -43,6 +43,7 @@ export function computeFloorPieces3D(p: FloorParams, floorId: string): Piece3D[]
     dormerFrames: new Map(),
     wallFrames: new Map(),
     floorFrames: new Map([[floorId, frame]]),
+    framingFrames: new Map(),
   };
 
   const declared: Piece[] = [];
