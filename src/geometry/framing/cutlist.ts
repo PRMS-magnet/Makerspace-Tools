@@ -95,21 +95,19 @@ function blockMarksOnMember(
 ): Polygon[] {
   if (style === 'none' || blockRows.length === 0) return [];
   const marks: Polygon[] = [];
-  // Dedupe positions in case multiple rows land at the same Y (rare but possible)
   const seen = new Set<number>();
+  // Each block is engraved on only ONE adjacent stud so the cut sheet doesn't double-mark.
+  // Convention: a block in bay i is marked on stud i (the stud on its left). Full-length
+  // blocks span all bays so they get marked on every stud. The last stud (rightmost) has
+  // no bay i, so it only carries full-length marks.
   for (const row of blockRows) {
-    const adjacent = row.spanFullLength
-      || row.bayIndex === studIndex - 1
-      || row.bayIndex === studIndex;
-    if (!adjacent) continue;
-    // Round to avoid float dup keys
+    const owns = row.spanFullLength || row.bayIndex === studIndex;
+    if (!owns) continue;
     const key = Math.round(row.positionFromEndCapAIn * 1e6);
     if (seen.has(key)) continue;
     seen.add(key);
     marks.push(...marksAtPosition(row.positionFromEndCapAIn, blockFootprintIn, memberCrossDim, style, 'Y'));
   }
-  // Drop marks above the outermost studs that touch only their single bay -- already handled above
-  // since stud 0 only matches bayIndex === 0 (no -1 bay), and stud n-1 only matches bayIndex === n-2.
   void nStuds;
   return marks;
 }

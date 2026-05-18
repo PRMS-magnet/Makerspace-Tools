@@ -136,7 +136,7 @@ describe('member blocking marks', () => {
     }
   });
 
-  it('half-mode blocking puts 2 ticks (brackets) on each interior stud and 2 on each outer stud', () => {
+  it('half-mode blocking puts marks on every stud except the last (right-bay convention)', () => {
     const { pieces } = buildFramingCutListPieces(
       { ...DEFAULTS, blocking: { mode: 'half', positionFraction: 0.5 } },
       'main',
@@ -144,34 +144,58 @@ describe('member blocking marks', () => {
     const members = pieces
       .filter((p) => p.placement?.kind === 'framing-member')
       .sort((a, b) => (a.placement as { indexAlongLength: number }).indexAlongLength - (b.placement as { indexAlongLength: number }).indexAlongLength);
-    // 6 studs, 5 bays each at position 0.5. Outer studs touch only 1 adjacent bay; interior touch 2.
-    // But all 5 bays have a row at the SAME position 0.5, so the dedupe keeps just one position per stud.
-    // Each stud has 1 unique position -> 2 ticks (brackets).
-    for (const m of members) {
-      expect(m.engravedFeatures?.length).toBe(2);
+    // 6 studs, 5 bays, all at position 0.5. Each stud i owns bay i, so studs 0..4 get
+    // 1 position -> 2 brackets each; stud 5 (rightmost) has no bay 5 -> 0 marks.
+    for (let i = 0; i < members.length - 1; i++) {
+      expect(members[i].engravedFeatures?.length).toBe(2);
     }
+    expect(members[members.length - 1].engravedFeatures?.length).toBe(0);
   });
 
-  it('solid engrave style emits one filled mark per blocking position on each adjacent stud', () => {
+  it('solid engrave style emits one filled mark per blocking position on the owning stud', () => {
     const { pieces } = buildFramingCutListPieces(
       { ...DEFAULTS, blocking: { mode: 'half', positionFraction: 0.5 }, engraveStyle: 'solid' },
       'main',
     );
-    const members = pieces.filter((p) => p.placement?.kind === 'framing-member');
-    for (const m of members) {
-      expect(m.engravedFeatures?.length).toBe(1);
+    const members = pieces
+      .filter((p) => p.placement?.kind === 'framing-member')
+      .sort((a, b) => (a.placement as { indexAlongLength: number }).indexAlongLength - (b.placement as { indexAlongLength: number }).indexAlongLength);
+    for (let i = 0; i < members.length - 1; i++) {
+      expect(members[i].engravedFeatures?.length).toBe(1);
     }
+    expect(members[members.length - 1].engravedFeatures?.length).toBe(0);
   });
 
-  it('full-length blocking (custom bayIndex=-1) marks every stud', () => {
+  it('staggered 3-2-3 marks each stud with only its own bay (no double-marking from both sides)', () => {
+    const { pieces } = buildFramingCutListPieces(
+      { ...DEFAULTS, blocking: { mode: 'staggered', denseCount: 3, sparseCount: 2, startDense: true } },
+      'main',
+    );
+    const members = pieces
+      .filter((p) => p.placement?.kind === 'framing-member')
+      .sort((a, b) => (a.placement as { indexAlongLength: number }).indexAlongLength - (b.placement as { indexAlongLength: number }).indexAlongLength);
+    // 6 studs, 5 bays: dense(3) sparse(2) dense(3) sparse(2) dense(3).
+    // stud i owns bay i: stud 0 -> 3 marks * 2 brackets = 6; stud 1 -> 2 * 2 = 4;
+    // stud 2 -> 3 * 2 = 6; stud 3 -> 2 * 2 = 4; stud 4 -> 3 * 2 = 6; stud 5 -> 0 (no bay 5).
+    expect(members[0].engravedFeatures?.length).toBe(6);
+    expect(members[1].engravedFeatures?.length).toBe(4);
+    expect(members[2].engravedFeatures?.length).toBe(6);
+    expect(members[3].engravedFeatures?.length).toBe(4);
+    expect(members[4].engravedFeatures?.length).toBe(6);
+    expect(members[5].engravedFeatures?.length).toBe(0);
+  });
+
+  it('full-length blocking (custom bayIndex=-1) marks every stud including the rightmost', () => {
     const { pieces } = buildFramingCutListPieces(
       { ...DEFAULTS, blocking: { mode: 'custom', rows: [{ bayIndex: -1, positionFraction: 0.3 }] } },
       'main',
     );
     const members = pieces.filter((p) => p.placement?.kind === 'framing-member');
     expect(members.length).toBe(6);
+    // Full-length blocks span the whole panel so they DO get marked on every stud,
+    // including the rightmost (no bay-ownership exception for full-length).
     for (const m of members) {
-      expect(m.engravedFeatures?.length).toBe(2); // brackets default
+      expect(m.engravedFeatures?.length).toBe(2);
     }
   });
 });
