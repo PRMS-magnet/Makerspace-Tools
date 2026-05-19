@@ -97,11 +97,22 @@ describe('verifyFraming - fabrication layer', () => {
     expect(r.errors.some((e) => e.layer === 'fabrication' && e.severity === 'warning' && e.message.includes('min'))).toBe(true);
   });
 
-  it('errors when a piece can never fit the sheet', () => {
-    const params = { ...BASE, lengthIn: 50, sheetWidthIn: 4, maxPieceLengthIn: 4 };
+  it('errors when a piece short dim is larger than the usable sheet width', () => {
+    // Force a member depth that exceeds the usable sheet width -- the member's
+    // short dim (memberDepth) cannot fit at any rotation.
+    const params = { ...BASE, memberDepthIn: 6, sheetWidthIn: 4, maxPieceLengthIn: 12 };
     const { cut, three } = build(params);
     const r = verifyFraming(params, cut, three);
-    expect(r.errors.some((e) => e.layer === 'fabrication' && e.severity === 'error' && e.message.includes('cannot fit'))).toBe(true);
+    expect(r.errors.some((e) => e.layer === 'fabrication' && e.severity === 'error' && e.message.includes('exceeds usable sheet width'))).toBe(true);
+  });
+
+  it('warns (not errors) when a member long dim exceeds maxPieceLength but still fits the sheet', () => {
+    // Members don't auto-split, so a tall wall surfaces a long member that fits the
+    // sheet width but exceeds maxPieceLength.
+    const params = { ...BASE, spanIn: 15, sheetWidthIn: 18, maxPieceLengthIn: 12 };
+    const { cut, three } = build(params);
+    const r = verifyFraming(params, cut, three);
+    expect(r.errors.some((e) => e.layer === 'fabrication' && e.severity === 'warning' && e.message.includes('exceeds max piece length'))).toBe(true);
   });
 });
 

@@ -82,7 +82,7 @@ const previewViews = [
               <option value="custom">Custom</option>
             </select>
           </label>
-          <NumberField name="blockingThicknessIn" label="Block thickness (unused; matches member depth)" value={0.125} step={0.0625} min={0.0625} />
+          <input type="hidden" name="blockingThicknessIn" value="0.125" />
           <div id="blocking-fields"></div>
         </FormGroup>
         <FormGroup label="Engravings">
@@ -215,6 +215,7 @@ const previewViews = [
   import { verifyFraming, type VerificationResult } from '../geometry/framing/verify';
   import { packInWorker } from '../geometry/core/packing';
   import type { FramingParams, BlockingSpec, FramingMode, EngraveStyle } from '../geometry/framing';
+  import { DEFAULT_SPARES } from '../geometry/framing/types';
   import { bboxLayoutOnSheet } from '../geometry/core/packing/bbox-fallback';
   import { getActiveMachine } from '../state/presets/machine';
   import { getActiveMaterial } from '../state/presets/material';
@@ -450,7 +451,7 @@ const previewViews = [
     setVal('blockingThicknessIn', p.blockingThicknessIn);
     setVal('stockThicknessIn', p.stockThicknessIn);
     engraveStyleSel.value = p.engraveStyle ?? 'brackets';
-    const spares = p.spares ?? { members: 1, endCaps: 0, blocks: 3, spliceGussets: 2 };
+    const spares = p.spares ?? DEFAULT_SPARES;
     setVal('spareMembers', spares.members);
     setVal('spareEndCaps', spares.endCaps);
     setVal('spareBlocks', spares.blocks);
@@ -459,22 +460,23 @@ const previewViews = [
     setVal('maxPieceLengthIn', p.maxPieceLengthIn);
     setVal('marginIn', p.marginIn);
     setVal('pieceSpacingIn', p.pieceSpacingIn ?? 0.06);
-    blockingModeSel.value = p.blocking.mode;
+    const blocking = p.blocking ?? { mode: 'none' as const };
+    blockingModeSel.value = blocking.mode;
     renderBlockingFields();
-    if (p.blocking.mode === 'custom') {
-      for (const r of p.blocking.rows) addCustomRow(r.bayIndex, r.positionFraction);
-    } else if (p.blocking.mode === 'half') {
+    if (blocking.mode === 'custom') {
+      for (const r of blocking.rows ?? []) addCustomRow(r.bayIndex, r.positionFraction);
+    } else if (blocking.mode === 'half') {
       const pfEl = blockingFieldsEl.querySelector('[name=positionFraction]') as HTMLInputElement | null;
-      if (pfEl) pfEl.value = String(p.blocking.positionFraction);
-    } else if (p.blocking.mode === 'staggered') {
+      if (pfEl) pfEl.value = String(blocking.positionFraction);
+    } else if (blocking.mode === 'staggered') {
       const dcEl = blockingFieldsEl.querySelector('[name=denseCount]') as HTMLInputElement | null;
       const scEl = blockingFieldsEl.querySelector('[name=sparseCount]') as HTMLInputElement | null;
       const sdEl = blockingFieldsEl.querySelector('[name=startDense]') as HTMLInputElement | null;
-      if (dcEl) dcEl.value = String(p.blocking.denseCount);
-      if (scEl) scEl.value = String(p.blocking.sparseCount);
-      if (sdEl) sdEl.checked = p.blocking.startDense;
+      if (dcEl) dcEl.value = String(blocking.denseCount);
+      if (scEl) scEl.value = String(blocking.sparseCount);
+      if (sdEl) sdEl.checked = blocking.startDense;
     }
-    applyLabels(p.mode);
+    applyLabels(p.mode ?? 'wall');
   }
 
   type ViewerHandle = {
@@ -504,6 +506,15 @@ const previewViews = [
     if (!v || !lastValidOutput) return;
     v.setPieces(lastValidOutput.pieces3D);
     v.resize();
+  }
+
+  async function destroyViewer3DIfHidden(): Promise<void> {
+    const slot = document.querySelector('[data-view-slot="view3d"]') as HTMLElement | null;
+    if (!slot || !slot.hidden) return;
+    if (!viewer3DPromise) return;
+    const v = await viewer3DPromise.catch(() => null);
+    viewer3DPromise = null;
+    if (v) v.destroy();
   }
 
   function appendWarning(parent: HTMLElement, text: string, invalid = false): void {
@@ -621,18 +632,25 @@ const previewViews = [
       },
     }).then((res) => {
       if (seq !== recomputeSeq) return;
-      if (res.packer !== 'bbox-fallback') {
+      const expectedCount = piecesResult.pieces.length;
+      const placedCount = res.placed.length;
+      const droppedPieces = expectedCount - placedCount;
+      if (res.packer !== 'bbox-fallback' && droppedPieces === 0) {
         const tighter = composeFramingCutSvg(res.placed, res.totalHeightIn, p.sheetWidthIn);
         if (cutListVisible()) cutSlot.innerHTML = tighter;
         if (lastValidOutput) lastValidOutput = { ...lastValidOutput, cutSvg: tighter, warnings: [...piecesResult.warnings, ...res.warnings] };
         lastTightHeightIn = res.totalHeightIn;
       } else {
-        // Smart packer fell back. Any partial we already painted into cutSlot is
-        // potentially incomplete -- restore the full bbox-fallback layout so what
-        // the user sees matches what they would download.
+        // Either the smart packer fell back, OR it ran but dropped pieces (some
+        // couldn't fit at any rotation). The bbox-fallback layout in lastValidOutput
+        // is complete -- never replace it with a result that's missing pieces. Any
+        // partial render already on screen is restored from the complete bbox-fallback.
         if (cutListVisible() && lastValidOutput) cutSlot.innerHTML = lastValidOutput.cutSvg;
       }
-      renderWarnings([...piecesResult.warnings, ...res.warnings]);
+      const extraWarn = droppedPieces > 0
+        ? [`Smart packer dropped ${droppedPieces} piece(s); using the simple bbox layout (download is complete).`]
+        : [];
+      renderWarnings([...piecesResult.warnings, ...res.warnings, ...extraWarn]);
     }).catch((err) => {
       if ((err as Error)?.name === 'AbortError') return;
       console.error('pack worker error', err);
@@ -735,7 +753,10 @@ const previewViews = [
   viewToggleInputs.forEach((input) => {
     input.addEventListener('change', () => {
       applyViewVisibility();
-      if (input.dataset.viewToggle === 'view3d' && input.checked) void updateViewer3D();
+      if (input.dataset.viewToggle === 'view3d') {
+        if (input.checked) void updateViewer3D();
+        else void destroyViewer3DIfHidden();
+      }
       if (input.dataset.viewToggle === 'cutlist' && input.checked) recompute();
     });
   });
@@ -775,7 +796,10 @@ const previewViews = [
     const nameInput = saveDialog.querySelector('input[name="preset-name"]') as HTMLInputElement | null;
     if (!nameInput) return;
     const name = nameInput.value.trim();
-    if (!name) return;
+    if (!name) {
+      appendWarning(warningsEl, 'Preset name was empty; nothing saved.', true);
+      return;
+    }
     const id = `user-framing-${Date.now()}`;
     saveToolPreset<FramingParams>('framing', {
       id, toolSlug: 'framing', name, params: readParams(), createdAt: new Date().toISOString(),
@@ -838,12 +862,20 @@ const previewViews = [
   populateForm(getActiveToolPreset<FramingParams>('framing').params);
   recompute();
 
-  (window as unknown as { __dbg: () => unknown }).__dbg = () => ({ pieces3D: lastValidOutput?.pieces3D ?? [] });
+  if (import.meta.env.DEV) {
+    (window as unknown as { __dbg: () => unknown }).__dbg = () => ({ pieces3D: lastValidOutput?.pieces3D ?? [] });
+  }
 
   let themeSeq = 0;
   const themeObserver = new MutationObserver(async () => {
-    if (!viewer3DPromise) return;
     const mySeq = ++themeSeq;
+    // Repaint the 2D diagram with the new theme tokens.
+    if (lastValidOutput) {
+      const fresh = framingPieces(readParams());
+      diagramSlot.innerHTML = fresh.diagramSvg;
+    }
+    // Update the 3D viewer if mounted.
+    if (!viewer3DPromise) return;
     const v = await viewer3DPromise;
     if (!v || mySeq !== themeSeq) return;
     v.setTokens(getCurrentTokens());

@@ -8,9 +8,9 @@ interface Props {
 }
 const { id, title = 'Save preset', placeholder = 'Preset name' } = Astro.props;
 ---
-<dialog id={id} class="save-preset-dialog">
+<dialog id={id} class="save-preset-dialog" aria-labelledby={`${id}-title`}>
   <form method="dialog">
-    <h3>{title}</h3>
+    <h3 id={`${id}-title`}>{title}</h3>
     <label class="dlg-label">
       <span>Name</span>
       <input name="preset-name" type="text" required placeholder={placeholder} />

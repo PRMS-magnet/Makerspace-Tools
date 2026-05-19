@@ -1,3 +1,5 @@
+import { DEFAULT_SPARES } from '../geometry/framing/types';
+
 const FLAG = 'mt:migration:wall-floor->framing:v1';
 
 interface OldWallParams {
@@ -32,7 +34,7 @@ function migrateWallParams(p: OldWallParams): Record<string, unknown> {
     blockingThicknessIn: p.blockingThicknessIn,
     stockThicknessIn: p.stockThicknessIn,
     engraveStyle: 'brackets',
-    spares: { members: 1, endCaps: 0, blocks: 3, spliceGussets: 2 },
+    spares: DEFAULT_SPARES,
     sheetWidthIn: p.sheetWidthIn,
     maxPieceLengthIn: p.maxPieceLengthIn,
     marginIn: p.marginIn,
@@ -54,7 +56,7 @@ function migrateFloorParams(p: OldFloorParams): Record<string, unknown> {
     blockingThicknessIn: p.blockingThicknessIn,
     stockThicknessIn: p.stockThicknessIn,
     engraveStyle: 'brackets',
-    spares: { members: 1, endCaps: 0, blocks: 3, spliceGussets: 2 },
+    spares: DEFAULT_SPARES,
     sheetWidthIn: p.sheetWidthIn,
     maxPieceLengthIn: p.maxPieceLengthIn,
     marginIn: p.marginIn,
@@ -81,19 +83,45 @@ function migrateBlocking(blocking: unknown, kind: 'wall' | 'floor'): unknown {
   return blocking;
 }
 
+function safeReadJson<T>(key: string, fallback: T): T {
+  try {
+    if (typeof localStorage === 'undefined') return fallback;
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function safeWriteJson(key: string, value: unknown): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Quota exceeded, storage disabled, etc. Migration silently best-effort.
+  }
+}
+
 export function migrateWallFloorToFraming(): void {
   if (typeof localStorage === 'undefined') return;
-  if (localStorage.getItem(FLAG)) return;
+  try {
+    if (localStorage.getItem(FLAG)) return;
+  } catch {
+    return;
+  }
 
-  const existing = localStorage.getItem('mt:tool:framing');
-  const acc: unknown[] = existing ? JSON.parse(existing) : [];
+  const existingRaw = safeReadJson<unknown>('mt:tool:framing', []);
+  const acc: unknown[] = Array.isArray(existingRaw) ? [...existingRaw] : [];
 
   for (const oldSlug of ['wall', 'floor'] as const) {
-    const raw = localStorage.getItem(`mt:tool:${oldSlug}`);
-    if (!raw) continue;
-    try {
-      const arr = JSON.parse(raw) as Array<{ params: Record<string, unknown> } & Record<string, unknown>>;
-      for (const preset of arr) {
+    const arr = safeReadJson<unknown>(`mt:tool:${oldSlug}`, null);
+    if (!Array.isArray(arr)) continue;
+    for (const presetRaw of arr) {
+      if (!presetRaw || typeof presetRaw !== 'object') continue;
+      const preset = presetRaw as { params?: unknown } & Record<string, unknown>;
+      if (!preset.params || typeof preset.params !== 'object') continue;
+      try {
         const migrated = {
           ...preset,
           toolSlug: 'framing',
@@ -102,10 +130,16 @@ export function migrateWallFloorToFraming(): void {
             : migrateFloorParams(preset.params as unknown as OldFloorParams),
         };
         acc.push(migrated);
+      } catch {
+        // Skip any individual preset that fails to migrate; keep going.
       }
-    } catch {}
+    }
   }
 
-  if (acc.length > 0) localStorage.setItem('mt:tool:framing', JSON.stringify(acc));
-  localStorage.setItem(FLAG, '1');
+  if (acc.length > 0) safeWriteJson('mt:tool:framing', acc);
+  try {
+    localStorage.setItem(FLAG, '1');
+  } catch {
+    // Migration may re-run on next page load; harmless.
+  }
 }

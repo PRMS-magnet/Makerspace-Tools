@@ -1,12 +1,14 @@
 import type { FramingParams } from './types';
 import { computeFramingGeometry, computeMemberPositions } from './compute';
 import { resolveBlockingRows } from './blocking';
+import { getCurrentTokens } from '../../lib/diagram-tokens';
 
 function fmt(n: number): string {
   return n.toFixed(4);
 }
 
 export function buildFramingDiagramSvg(p: FramingParams): string {
+  const t = getCurrentTokens();
   const margin = 0.5;
   const geom = computeFramingGeometry(p);
   const memberPositions = computeMemberPositions(p);
@@ -19,15 +21,15 @@ export function buildFramingDiagramSvg(p: FramingParams): string {
   const h = p.spanIn + 2 * margin;
   const parts: string[] = [];
 
-  // End cap A (bottom for wall, front for floor — both render at the bottom of the canvas)
+  // End cap A (bottom for wall, front for floor -- both render at the bottom of the canvas)
   parts.push(
-    `<rect x="${fmt(margin - endCapOverhang)}" y="${fmt(margin + p.spanIn - p.endCapHeightIn)}" width="${fmt(endCapTotalLen)}" height="${fmt(p.endCapHeightIn)}" fill="#d4a373" stroke="#000" stroke-width="0.01"/>`,
+    `<rect x="${fmt(margin - endCapOverhang)}" y="${fmt(margin + p.spanIn - p.endCapHeightIn)}" width="${fmt(endCapTotalLen)}" height="${fmt(p.endCapHeightIn)}" fill="${t.fillWall}" stroke="${t.strokeWall}" stroke-width="0.01"/>`,
   );
-  // End cap B (top / back) — stacks at the top
+  // End cap B (top / back) -- stacks at the top
   for (let layer = 0; layer < geom.nEndCapBLayers; layer++) {
     const y = margin + layer * p.endCapHeightIn;
     parts.push(
-      `<rect x="${fmt(margin - endCapOverhang)}" y="${fmt(y)}" width="${fmt(endCapTotalLen)}" height="${fmt(p.endCapHeightIn)}" fill="#d4a373" stroke="#000" stroke-width="0.01"/>`,
+      `<rect x="${fmt(margin - endCapOverhang)}" y="${fmt(y)}" width="${fmt(endCapTotalLen)}" height="${fmt(p.endCapHeightIn)}" fill="${t.fillWall}" stroke="${t.strokeWall}" stroke-width="0.01"/>`,
     );
   }
 
@@ -35,7 +37,7 @@ export function buildFramingDiagramSvg(p: FramingParams): string {
   const memberYTop = margin + geom.nEndCapBLayers * p.endCapHeightIn;
   for (const xCenter of memberPositions) {
     parts.push(
-      `<rect x="${fmt(margin + xCenter - p.stockThicknessIn / 2)}" y="${fmt(memberYTop)}" width="${fmt(p.stockThicknessIn)}" height="${fmt(geom.interEndCapSpanIn)}" fill="#e9c46a" stroke="#000" stroke-width="0.01"/>`,
+      `<rect x="${fmt(margin + xCenter - p.stockThicknessIn / 2)}" y="${fmt(memberYTop)}" width="${fmt(p.stockThicknessIn)}" height="${fmt(geom.interEndCapSpanIn)}" fill="${t.fillWood}" stroke="${t.strokeWood}" stroke-width="0.01"/>`,
     );
   }
 
@@ -47,7 +49,7 @@ export function buildFramingDiagramSvg(p: FramingParams): string {
       : margin + memberPositions[row.bayIndex] + p.stockThicknessIn / 2;
     const ww = row.spanFullLength ? p.lengthIn : geom.bayWidthIn;
     parts.push(
-      `<rect x="${fmt(x)}" y="${fmt(y)}" width="${fmt(ww)}" height="${fmt(p.blockingThicknessIn)}" fill="#a8dadc" stroke="#000" stroke-width="0.01"/>`,
+      `<rect x="${fmt(x)}" y="${fmt(y)}" width="${fmt(ww)}" height="${fmt(p.blockingThicknessIn)}" fill="${t.fillStruct}" stroke="${t.strokeStruct}" stroke-width="0.01"/>`,
     );
   }
 

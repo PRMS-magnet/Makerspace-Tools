@@ -62,6 +62,11 @@ function isSpare(piece: Piece | Piece3D): boolean {
   return (piece.label ?? '').includes('+spare');
 }
 
+function pieceIdentityForSpare(piece: Piece | Piece3D, index: number): string {
+  const baseLabel = (piece.label ?? 'unknown').replace(/\s*\+spare\s*$/, '');
+  return `${baseLabel} +spare #${index}`;
+}
+
 function pieceIdentity(piece: Piece | Piece3D): string {
   const p = piece.placement;
   if (!p) return 'unknown';
@@ -268,22 +273,34 @@ function checkStructural(pieces3D: ReadonlyArray<Piece3D>): VerificationError[] 
     }
   }
 
-  // Connectedness via BFS from node 0.
-  const seen = new Set<number>([0]);
-  const queue: number[] = [0];
-  while (queue.length > 0) {
-    const n = queue.shift()!;
-    for (const m of adj[n]) if (!seen.has(m)) { seen.add(m); queue.push(m); }
+  // Connectedness via BFS over every node, choosing the largest component as
+  // "the main assembly." Anything outside it is reported. (BFS from node 0
+  // alone would misdiagnose if node 0 itself happens to be the isolated piece.)
+  const componentOf: number[] = new Array(boxes.length).fill(-1);
+  const componentSizes: number[] = [];
+  let nextComp = 0;
+  for (let start = 0; start < boxes.length; start++) {
+    if (componentOf[start] !== -1) continue;
+    componentOf[start] = nextComp;
+    const queue: number[] = [start];
+    let size = 1;
+    while (queue.length > 0) {
+      const n = queue.shift()!;
+      for (const m of adj[n]) if (componentOf[m] === -1) { componentOf[m] = nextComp; queue.push(m); size++; }
+    }
+    componentSizes.push(size);
+    nextComp++;
   }
-  if (seen.size !== boxes.length) {
+  if (componentSizes.length > 1) {
+    const mainComp = componentSizes.indexOf(Math.max(...componentSizes));
     const isolated = boxes
       .map((b, i) => ({ piece: b.piece, i }))
-      .filter(({ i }) => !seen.has(i))
+      .filter(({ i }) => componentOf[i] !== mainComp)
       .map(({ piece }) => pieceIdentity(piece));
     errors.push({
       layer: 'structural',
       severity: 'error',
-      message: `Assembly has disconnected pieces (no face contact with anything else): ${isolated.join(', ')}.`,
+      message: `Assembly has disconnected pieces (no face contact with the main assembly): ${isolated.join(', ')}.`,
     });
   }
 
@@ -364,15 +381,28 @@ function checkFabrication(
       message: `Sheet margin (${params.marginIn.toFixed(3)}" each side) consumes the whole sheet width (${params.sheetWidthIn.toFixed(2)}").`,
     });
   }
+  const usableSheet = params.sheetWidthIn - 2 * params.marginIn;
+  let spareIndex = 0;
   for (const piece of cutPieces) {
     const dims = polyBBoxDims(piece.polygon);
-    const longestDim = Math.max(dims.w, dims.h);
-    if (longestDim > params.sheetWidthIn - 2 * params.marginIn + 1e-6 && longestDim > params.maxPieceLengthIn + 1e-6) {
+    const id = isSpare(piece) ? pieceIdentityForSpare(piece, spareIndex++) : pieceIdentity(piece);
+    // A piece must fit BOTH constraints: physically narrow enough for the sheet
+    // AND within maxPieceLengthIn (an upstream splice budget).
+    const shortest = Math.min(dims.w, dims.h);
+    const longest = Math.max(dims.w, dims.h);
+    if (shortest > usableSheet + 1e-6) {
       errors.push({
         layer: 'fabrication',
         severity: 'error',
         pieceKind: pieceKindOf(piece),
-        message: `${pieceIdentity(piece)}: longest dim ${longestDim.toFixed(2)}" cannot fit the sheet (${(params.sheetWidthIn - 2 * params.marginIn).toFixed(2)}" usable) at any rotation.`,
+        message: `${id}: short dim ${shortest.toFixed(2)}" exceeds usable sheet width ${usableSheet.toFixed(2)}". Cannot fit at any rotation.`,
+      });
+    } else if (longest > params.maxPieceLengthIn + 1e-6) {
+      errors.push({
+        layer: 'fabrication',
+        severity: 'warning',
+        pieceKind: pieceKindOf(piece),
+        message: `${id}: long dim ${longest.toFixed(2)}" exceeds max piece length ${params.maxPieceLengthIn.toFixed(2)}". Increase maxPieceLength or split this piece.`,
       });
     }
   }

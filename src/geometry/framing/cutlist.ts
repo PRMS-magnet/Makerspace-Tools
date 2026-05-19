@@ -88,7 +88,6 @@ function memberMarksOnSegment(
 
 function blockMarksOnMember(
   studIndex: number,
-  nStuds: number,
   blockRows: ReadonlyArray<BlockRow>,
   blockFootprintIn: number,
   memberCrossDim: number,
@@ -109,7 +108,6 @@ function blockMarksOnMember(
     seen.add(key);
     marks.push(...marksAtPosition(row.positionFromEndCapAIn, blockFootprintIn, memberCrossDim, style, 'Y'));
   }
-  void nStuds;
   return marks;
 }
 
@@ -224,7 +222,7 @@ export function buildFramingCutListPieces(p: FramingParams, framingId: string): 
       op: 'cut',
       label: `framing-member-${p.mode}`,
       placement: { kind: 'framing-member', framingId, indexAlongLength: i },
-      engravedFeatures: blockMarksOnMember(i, nMembers, rows, p.stockThicknessIn, p.memberDepthIn, p.engraveStyle),
+      engravedFeatures: blockMarksOnMember(i, rows, p.stockThicknessIn, p.memberDepthIn, p.engraveStyle),
     });
   }
 
@@ -246,14 +244,20 @@ export function buildFramingCutListPieces(p: FramingParams, framingId: string): 
 
   // Spare pieces. Clone canonical templates per kind so spares are visibly
   // marked but otherwise identical (so the laser cuts them at the same size).
+  const sanitize = (n: number) => Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
   const spareCounts = {
-    members: Math.max(0, Math.floor(p.spares.members)),
-    endCaps: Math.max(0, Math.floor(p.spares.endCaps)),
-    blocks: Math.max(0, Math.floor(p.spares.blocks)),
-    spliceGussets: Math.max(0, Math.floor(p.spares.spliceGussets)),
+    members: sanitize(p.spares?.members ?? 0),
+    endCaps: sanitize(p.spares?.endCaps ?? 0),
+    blocks: sanitize(p.spares?.blocks ?? 0),
+    spliceGussets: sanitize(p.spares?.spliceGussets ?? 0),
   };
 
+  // Cache templates BEFORE any spare push so .find never picks up a spare clone.
   const memberTemplate = pieces.find((x) => x.placement?.kind === 'framing-member');
+  const endCapTemplate = pieces.find((x) => x.placement?.kind === 'framing-end-cap');
+  const blockTemplate = pieces.find((x) => x.placement?.kind === 'framing-block');
+  const gussetTemplate = pieces.find((x) => x.placement?.kind === 'splice-gusset');
+
   if (memberTemplate) {
     for (let i = 0; i < spareCounts.members; i++) {
       pieces.push({
@@ -265,7 +269,6 @@ export function buildFramingCutListPieces(p: FramingParams, framingId: string): 
     }
   }
 
-  const endCapTemplate = pieces.find((x) => x.placement?.kind === 'framing-end-cap');
   if (endCapTemplate) {
     for (let i = 0; i < spareCounts.endCaps; i++) {
       pieces.push({
@@ -277,35 +280,44 @@ export function buildFramingCutListPieces(p: FramingParams, framingId: string): 
     }
   }
 
-  const blockTemplate = pieces.find((x) => x.placement?.kind === 'framing-block');
   if (blockTemplate) {
     for (let i = 0; i < spareCounts.blocks; i++) {
       pieces.push({
         ...blockTemplate,
         label: `${blockTemplate.label ?? 'framing-block'} +spare`,
         placement: undefined,
+        engravedFeatures: undefined,
       });
     }
   } else if (spareCounts.blocks > 0) {
     // No blocks emitted (e.g., blocking=none) but user requested spare blocks.
-    // Emit canonical-size blocks so they have spares to keep.
+    // Synthesize a canonical-size block. Refuse to emit degenerate sizes --
+    // bayWidth can be 0 or below if effectiveSpacing collapses, which would
+    // otherwise produce zero-area cuts.
+    const MIN_BLOCK = 0.0625;
     const canonicalBlockWidth = geom.bayWidthIn;
-    for (let i = 0; i < spareCounts.blocks; i++) {
-      pieces.push({
-        polygon: rectanglePolygon(canonicalBlockWidth, p.memberDepthIn),
-        op: 'cut',
-        label: 'framing-block +spare',
-      });
+    if (canonicalBlockWidth >= MIN_BLOCK) {
+      for (let i = 0; i < spareCounts.blocks; i++) {
+        pieces.push({
+          polygon: rectanglePolygon(canonicalBlockWidth, p.memberDepthIn),
+          op: 'cut',
+          label: 'framing-block +spare',
+        });
+      }
+    } else {
+      warnings.push(
+        `Skipped ${spareCounts.blocks} spare block(s): bay width ${canonicalBlockWidth.toFixed(3)}" is too small to emit a useful piece.`,
+      );
     }
   }
 
-  const gussetTemplate = pieces.find((x) => x.placement?.kind === 'splice-gusset');
   if (gussetTemplate) {
     for (let i = 0; i < spareCounts.spliceGussets; i++) {
       pieces.push({
         ...gussetTemplate,
         label: `${gussetTemplate.label ?? 'splice-gusset'} +spare`,
         placement: undefined,
+        engravedFeatures: undefined,
       });
     }
   }

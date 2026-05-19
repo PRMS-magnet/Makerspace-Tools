@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { LIGHT_TOKENS, DARK_TOKENS, getCurrentTokens, type DiagramTokens } from './diagram-tokens';
 

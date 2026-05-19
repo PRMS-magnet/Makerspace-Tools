@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { downloadSvg } from './download';
 
@@ -45,17 +46,38 @@ describe('downloadSvg', () => {
     expect(blob.type).toBe('image/svg+xml');
   });
 
-  it('revokes the Blob URL after clicking', () => {
-    const revokeSpy = vi.fn();
-    vi.stubGlobal('URL', {
-      ...URL,
-      createObjectURL: vi.fn(() => 'blob:abc'),
-      revokeObjectURL: revokeSpy,
+  it('defers revoking the Blob URL until after the click event settles (iOS/Safari race fix)', () => {
+    vi.useFakeTimers();
+    try {
+      const revokeSpy = vi.fn();
+      vi.stubGlobal('URL', {
+        ...URL,
+        createObjectURL: vi.fn(() => 'blob:abc'),
+        revokeObjectURL: revokeSpy,
+      });
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+      downloadSvg('<svg/>', 'x.svg');
+
+      // Not revoked synchronously -- the URL must remain valid while the
+      // browser starts the download.
+      expect(revokeSpy).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1000);
+      expect(revokeSpy).toHaveBeenCalledWith('blob:abc');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('sanitizes path-separator characters out of the filename', () => {
+    const clickSpy = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      clickSpy(this.download);
     });
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
-    downloadSvg('<svg/>', 'x.svg');
+    downloadSvg('<svg/>', 'evil/path:with*reserved?chars.svg');
 
-    expect(revokeSpy).toHaveBeenCalledWith('blob:abc');
+    expect(clickSpy).toHaveBeenCalledWith('evil_path_with_reserved_chars.svg');
   });
 });

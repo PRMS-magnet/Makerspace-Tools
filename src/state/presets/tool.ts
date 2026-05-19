@@ -1,6 +1,7 @@
 import { load, save } from './storage';
 import type { RoofParams } from '../../geometry/roof/types';
 import type { FramingParams } from '../../geometry/framing/types';
+import { DEFAULT_SPARES } from '../../geometry/framing/types';
 
 export interface ToolPreset<P> {
   id: string;
@@ -43,7 +44,7 @@ const FRAMING_DEFAULT_WALL: FramingParams = {
   blockingThicknessIn: 0.125,
   stockThicknessIn: 0.125,
   engraveStyle: 'brackets',
-  spares: { members: 1, endCaps: 0, blocks: 3, spliceGussets: 2 },
+  spares: DEFAULT_SPARES,
   sheetWidthIn: 12.0,
   maxPieceLengthIn: 12.0,
   marginIn: 0.12,

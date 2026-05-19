@@ -483,7 +483,9 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
     case 'framing-member': {
       const f = ctx.framingFrames.get(p.framingId);
       if (!f) throw new Error(`resolvePiece: no framing frame for ${p.framingId}`);
-      const x = f.memberPositionsIn[p.indexAlongLength] - f.unit.stockThicknessIn / 2;
+      const memberX = f.memberPositionsIn[p.indexAlongLength];
+      if (memberX === undefined) throw new Error(`resolvePiece: framing-member indexAlongLength ${p.indexAlongLength} out of range (have ${f.memberPositionsIn.length} positions)`);
+      const x = memberX - f.unit.stockThicknessIn / 2;
       if (f.unit.mode === 'wall') {
         const localOrigin: Vec3 = [x, 0, f.unit.endCapHeightIn];
         const { origin, uAxis, vAxis } = applyFramingFrame(localOrigin, [1, 0, 0], [0, 1, 0], f);
@@ -498,7 +500,12 @@ export function resolvePiece(piece: Piece, ctx: ResolveContext): Piece3D {
       const f = ctx.framingFrames.get(p.framingId);
       if (!f) throw new Error(`resolvePiece: no framing frame for ${p.framingId}`);
       const row = f.blockRows[p.rowIndex];
-      const x = row.spanFullLength ? 0 : f.memberPositionsIn[row.bayIndex] + f.unit.stockThicknessIn / 2;
+      if (!row) throw new Error(`resolvePiece: framing-block rowIndex ${p.rowIndex} out of range (have ${f.blockRows.length} rows)`);
+      const bayMemberX = row.spanFullLength ? null : f.memberPositionsIn[row.bayIndex];
+      if (!row.spanFullLength && bayMemberX === undefined) {
+        throw new Error(`resolvePiece: framing-block bayIndex ${row.bayIndex} out of range (have ${f.memberPositionsIn.length} positions)`);
+      }
+      const x = row.spanFullLength ? 0 : bayMemberX! + f.unit.stockThicknessIn / 2;
       if (f.unit.mode === 'wall') {
         const z = f.unit.endCapHeightIn + row.positionFromEndCapAIn - f.unit.stockThicknessIn / 2;
         const localOrigin: Vec3 = [x, 0, z];
